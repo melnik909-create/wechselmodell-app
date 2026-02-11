@@ -1,14 +1,12 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { useCustodyPattern, useCustodyExceptions, useFamilyMembers } from '@/hooks/useFamily';
-import { getCustodyForDate, getCustodyForRange, buildExceptionMap, formatDateKey } from '@/lib/custody-engine';
+import { getCustodyForDate, buildExceptionMap } from '@/lib/custody-engine';
 import { getNext7Days, formatShortDay, formatDayMonth, formatFullDate } from '@/lib/date-utils';
 import { PARENT_COLORS, COLORS } from '@/lib/constants';
-import { addDays } from 'date-fns';
 import type { Parent } from '@/types';
 
 export default function HomeScreen() {
@@ -26,74 +24,69 @@ export default function HomeScreen() {
     : null;
 
   const parentName = (parent: Parent) => {
-    const member = members?.find(m => m.role === parent);
+    const member = members?.find((m) => m.role === parent);
     return member?.profile?.display_name ?? (parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B');
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      <ScrollView className="flex-1" contentContainerClassName="px-4 py-4 pb-8">
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Greeting */}
-        <Text className="text-lg font-semibold text-gray-900 mb-4">
-          Hallo, {profile?.display_name ?? 'dort'} 👋
-        </Text>
+        <Text style={styles.greeting}>Hallo, {profile?.display_name ?? 'dort'} 👋</Text>
 
         {/* Today Card */}
         {todayParent && (
-          <Card className="mb-4">
-            <View className="items-center py-2">
-              <Text className="text-sm text-gray-500 mb-1">Heute, {formatFullDate(today)}</Text>
+          <View style={styles.card}>
+            <View style={styles.todayCard}>
+              <Text style={styles.todayDate}>Heute, {formatFullDate(today)}</Text>
               <View
-                className="w-16 h-16 rounded-full items-center justify-center mb-2"
-                style={{ backgroundColor: PARENT_COLORS[todayParent] }}
+                style={[
+                  styles.todayAvatar,
+                  { backgroundColor: PARENT_COLORS[todayParent] },
+                ]}
               >
                 <MaterialCommunityIcons name="account" size={32} color="#fff" />
               </View>
-              <Text className="text-xl font-bold text-gray-900">
-                Bei {parentName(todayParent)}
-              </Text>
+              <Text style={styles.todayName}>Bei {parentName(todayParent)}</Text>
             </View>
-          </Card>
+          </View>
         )}
 
         {/* Week Preview */}
         {pattern && (
-          <Card className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-3">
-              Naechste 7 Tage
-            </Text>
-            <View className="flex-row justify-between">
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Naechste 7 Tage</Text>
+            <View style={styles.weekPreview}>
               {next7Days.map((day, i) => {
                 const parent = getCustodyForDate(pattern, day, exceptionMap);
                 const isToday = i === 0;
                 return (
-                  <View key={i} className="items-center flex-1">
-                    <Text className={`text-xs mb-1 ${isToday ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                  <View key={i} style={styles.dayColumn}>
+                    <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
                       {formatShortDay(day)}
                     </Text>
                     <View
-                      className={`w-9 h-9 rounded-full items-center justify-center ${isToday ? 'border-2 border-gray-900' : ''}`}
-                      style={{ backgroundColor: PARENT_COLORS[parent] }}
+                      style={[
+                        styles.dayBadge,
+                        { backgroundColor: PARENT_COLORS[parent] },
+                        isToday && styles.dayBadgeToday,
+                      ]}
                     >
-                      <Text className="text-white text-xs font-bold">
+                      <Text style={styles.dayBadgeText}>
                         {parent === 'parent_a' ? 'A' : 'B'}
                       </Text>
                     </View>
-                    <Text className="text-[10px] text-gray-400 mt-1">
-                      {formatDayMonth(day)}
-                    </Text>
+                    <Text style={styles.dayDate}>{formatDayMonth(day)}</Text>
                   </View>
                 );
               })}
             </View>
-          </Card>
+          </View>
         )}
 
         {/* Quick Actions */}
-        <Text className="text-sm font-semibold text-gray-700 mb-3">
-          Schnellaktionen
-        </Text>
-        <View className="flex-row gap-3 mb-6">
+        <Text style={styles.sectionTitle}>Schnellaktionen</Text>
+        <View style={styles.quickActions}>
           <QuickAction
             icon="currency-eur"
             label="Ausgabe"
@@ -122,17 +115,15 @@ export default function HomeScreen() {
 
         {/* No pattern message */}
         {!pattern && (
-          <Card className="mb-4">
-            <View className="items-center py-4">
+          <View style={styles.card}>
+            <View style={styles.noPattern}>
               <MaterialCommunityIcons name="calendar-question" size={40} color={COLORS.textMuted} />
-              <Text className="text-base font-semibold text-gray-700 mt-2">
-                Noch kein Betreuungsmodell
-              </Text>
-              <Text className="text-sm text-gray-500 text-center mt-1">
+              <Text style={styles.noPatternTitle}>Noch kein Betreuungsmodell</Text>
+              <Text style={styles.noPatternText}>
                 Richte zuerst euer Wechselmodell ein.
               </Text>
             </View>
-          </Card>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -151,18 +142,155 @@ function QuickAction({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="flex-1 items-center"
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity onPress={onPress} style={styles.quickActionButton} activeOpacity={0.7}>
       <View
-        className="w-14 h-14 rounded-2xl items-center justify-center mb-1.5"
-        style={{ backgroundColor: color + '15' }}
+        style={[
+          styles.quickActionIcon,
+          { backgroundColor: color + '15' },
+        ]}
       >
         <MaterialCommunityIcons name={icon as any} size={26} color={color} />
       </View>
-      <Text className="text-xs text-gray-600 text-center">{label}</Text>
+      <Text style={styles.quickActionLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 32,
+  },
+  greeting: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
+    marginBottom: 16,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  todayCard: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  todayDate: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  todayAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  todayName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111',
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  weekPreview: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dayColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  dayName: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  dayNameToday: {
+    fontWeight: 'bold',
+    color: '#111',
+  },
+  dayBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayBadgeToday: {
+    borderWidth: 2,
+    borderColor: '#111',
+  },
+  dayBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  dayDate: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  quickActionButton: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  quickActionLabel: {
+    fontSize: 12,
+    color: '#4B5563',
+    textAlign: 'center',
+  },
+  noPattern: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  noPatternTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 8,
+  },
+  noPatternText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+});
