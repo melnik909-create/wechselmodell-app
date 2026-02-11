@@ -30,6 +30,15 @@ export default function ModalLayout() {
           headerBackTitle: 'Zurück',
         }}
       />
+      <Stack.Screen
+        name="edit-child"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          headerTitle: 'Kind bearbeiten',
+          headerBackTitle: 'Zurück',
+        }}
+      />
     </Stack>
   );
 }

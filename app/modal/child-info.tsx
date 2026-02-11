@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -277,6 +277,15 @@ export default function ChildInfoScreen() {
             </View>
           </View>
         )}
+
+        {/* Edit Button */}
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => router.push(`/modal/edit-child?id=${child.id}`)}
+        >
+          <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
+          <Text style={styles.editButtonText}>Bearbeiten</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -573,5 +582,20 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 24,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
