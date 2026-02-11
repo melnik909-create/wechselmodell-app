@@ -2,10 +2,14 @@ import { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useAddExpense } from '@/hooks/useExpenses';
 import { useChildren } from '@/hooks/useFamily';
 import { EXPENSE_CATEGORY_LABELS, type ExpenseCategory } from '@/types';
+import ImagePickerButton from '@/components/ImagePickerButton';
+import { uploadImage } from '@/lib/image-upload';
+import type { ImagePickerAsset } from 'expo-image-picker';
 
 const CATEGORIES: ExpenseCategory[] = [
   'clothing', 'medical', 'school', 'daycare', 'sports',
@@ -13,7 +17,7 @@ const CATEGORIES: ExpenseCategory[] = [
 ];
 
 export default function AddExpenseModal() {
-  const { user } = useAuth();
+  const { user, family } = useAuth();
   const { data: children } = useChildren();
   const addExpense = useAddExpense();
 
@@ -22,6 +26,9 @@ export default function AddExpenseModal() {
   const [category, setCategory] = useState<ExpenseCategory>('other');
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [splitType, setSplitType] = useState<'50_50' | 'custom'>('50_50');
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [receiptAsset, setReceiptAsset] = useState<ImagePickerAsset | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   async function handleSave() {
     const numAmount = parseFloat(amount.replace(',', '.'));
@@ -35,6 +42,14 @@ export default function AddExpenseModal() {
     }
 
     try {
+      setIsUploading(true);
+
+      // Upload receipt image if present
+      let receiptUrl: string | null = null;
+      if (receiptUri && family) {
+        receiptUrl = await uploadImage(receiptUri, 'receipts', family.id);
+      }
+
       await addExpense.mutateAsync({
         amount: numAmount,
         description: description.trim(),
@@ -43,17 +58,28 @@ export default function AddExpenseModal() {
         paid_by: user!.id,
         split_type: splitType,
         split_percentage: 50,
-        receipt_url: null,
+        receipt_url: receiptUrl,
         date: new Date().toISOString().split('T')[0],
       });
       router.back();
     } catch (error: any) {
       Alert.alert('Fehler', error.message || 'Ausgabe konnte nicht gespeichert werden.');
+    } finally {
+      setIsUploading(false);
     }
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
+          <MaterialCommunityIcons name="close" size={24} color="#111" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Neue Ausgabe</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -63,6 +89,23 @@ export default function AddExpenseModal() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Receipt Photo */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Beleg (optional)</Text>
+            <ImagePickerButton
+              imageUri={receiptUri}
+              onImageSelected={(uri, asset) => {
+                setReceiptUri(uri);
+                setReceiptAsset(asset);
+              }}
+              onImageRemoved={() => {
+                setReceiptUri(null);
+                setReceiptAsset(null);
+              }}
+              label="Beleg fotografieren"
+            />
+          </View>
+
           {/* Amount */}
           <Input
             label="Betrag (EUR)"
@@ -178,12 +221,12 @@ export default function AddExpenseModal() {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.button, addExpense.isPending && styles.buttonDisabled]}
+            style={[styles.button, (addExpense.isPending || isUploading) && styles.buttonDisabled]}
             onPress={handleSave}
-            disabled={addExpense.isPending}
+            disabled={addExpense.isPending || isUploading}
           >
             <Text style={styles.buttonText}>
-              {addExpense.isPending ? 'Speichern...' : 'Ausgabe speichern'}
+              {isUploading ? 'Beleg wird hochgeladen...' : addExpense.isPending ? 'Speichern...' : 'Ausgabe speichern'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -223,7 +266,28 @@ function Input({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111',
   },
   keyboardView: {
     flex: 1,

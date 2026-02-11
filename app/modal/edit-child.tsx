@@ -7,10 +7,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/lib/constants';
 import type { Child } from '@/types';
+import { useAuth } from '@/lib/auth';
+import { uploadImage } from '@/lib/image-upload';
+import ImagePickerButton from '@/components/ImagePickerButton';
 
 export default function EditChildScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { family } = useAuth();
 
   const { data: child, isLoading } = useQuery({
     queryKey: ['child', id],
@@ -27,6 +31,8 @@ export default function EditChildScreen() {
     enabled: !!id,
   });
 
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [passportNumber, setPassportNumber] = useState('');
   const [allergies, setAllergies] = useState('');
   const [bloodType, setBloodType] = useState('');
   const [doctorName, setDoctorName] = useState('');
@@ -43,6 +49,7 @@ export default function EditChildScreen() {
 
   useEffect(() => {
     if (child) {
+      setPassportNumber(child.passport_number ?? '');
       setAllergies(child.allergies ?? '');
       setBloodType(child.blood_type ?? '');
       setDoctorName(child.doctor_name ?? '');
@@ -61,10 +68,19 @@ export default function EditChildScreen() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!id) throw new Error('Keine Kind-ID');
+      if (!id || !family) throw new Error('Keine Kind-ID oder Familie');
+
+      // Upload avatar if new image selected
+      let finalAvatarUrl = child?.avatar_url || null;
+      if (avatarUri) {
+        finalAvatarUrl = await uploadImage(avatarUri, 'avatars', family.id, `child-${id}`);
+      }
+
       const { error } = await supabase
         .from('children')
         .update({
+          avatar_url: finalAvatarUrl,
+          passport_number: passportNumber.trim() || null,
           allergies: allergies.trim() || null,
           blood_type: bloodType.trim() || null,
           doctor_name: doctorName.trim() || null,
@@ -111,6 +127,16 @@ export default function EditChildScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {/* Avatar Section */}
+          <View style={styles.avatarSection}>
+            <Text style={styles.label}>Profilbild</Text>
+            <ImagePickerButton
+              imageUri={avatarUri}
+              onImagePicked={setAvatarUri}
+              onImageRemoved={() => setAvatarUri(null)}
+            />
+          </View>
+
           <SectionHeader icon="heart-pulse" title="Gesundheit" />
 
           <Input
@@ -203,6 +229,14 @@ export default function EditChildScreen() {
             keyboardType="phone-pad"
           />
 
+          <SectionHeader icon="passport" title="Dokumente" />
+          <Input
+            label="Reisepassnummer"
+            placeholder="C01X00T47"
+            value={passportNumber}
+            onChangeText={setPassportNumber}
+          />
+
           <SectionHeader icon="note-text" title="Notizen" />
           <Input
             label="Besonderheiten"
@@ -293,6 +327,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarSection: {
+    marginBottom: 24,
+    alignItems: 'center',
   },
   sectionHeader: {
     flexDirection: 'row',

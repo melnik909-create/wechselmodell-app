@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,9 +7,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/lib/constants';
 import type { Child, EmergencyContact } from '@/types';
+import { getSignedUrl } from '@/lib/image-upload';
 
 export default function ChildInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
 
   const { data: child, isLoading, error: queryError } = useQuery({
     queryKey: ['child', id],
@@ -39,6 +42,19 @@ export default function ChildInfoScreen() {
     },
     enabled: !!id,
   });
+
+  // Load avatar signed URL
+  useEffect(() => {
+    async function loadAvatar() {
+      if (child?.avatar_url) {
+        const url = await getSignedUrl('avatars', child.avatar_url);
+        setAvatarSignedUrl(url);
+      } else {
+        setAvatarSignedUrl(null);
+      }
+    }
+    loadAvatar();
+  }, [child?.avatar_url]);
 
   if (!id) {
     return (
@@ -88,8 +104,9 @@ export default function ChildInfoScreen() {
 
   const hasHealthInfo = child.allergies || child.blood_type || child.doctor_name || child.insurance_name;
   const hasEducationInfo = child.school_name || child.daycare_name;
+  const hasDocumentsInfo = child.passport_number;
   const hasEmergencyContacts = emergencyContacts && emergencyContacts.length > 0;
-  const hasAnyInfo = hasHealthInfo || hasEducationInfo || hasEmergencyContacts || child.notes;
+  const hasAnyInfo = hasHealthInfo || hasEducationInfo || hasDocumentsInfo || hasEmergencyContacts || child.notes;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -97,7 +114,11 @@ export default function ChildInfoScreen() {
         {/* Header Card */}
         <View style={styles.headerCard}>
           <View style={styles.avatar}>
-            <MaterialCommunityIcons name="account-child" size={56} color="#A855F7" />
+            {avatarSignedUrl ? (
+              <Image source={{ uri: avatarSignedUrl }} style={styles.avatarImage} />
+            ) : (
+              <MaterialCommunityIcons name="account-child" size={56} color="#A855F7" />
+            )}
           </View>
           <Text style={styles.childName}>{child.name}</Text>
           {child.date_of_birth && (
@@ -226,6 +247,25 @@ export default function ChildInfoScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+            )}
+          </View>
+        )}
+
+        {/* Documents Section */}
+        {hasDocumentsInfo && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="passport" size={24} color="#8B5CF6" />
+              <Text style={styles.sectionTitle}>Dokumente</Text>
+            </View>
+
+            {child.passport_number && (
+              <InfoRow
+                icon="passport"
+                iconColor="#8B5CF6"
+                label="Reisepassnummer"
+                value={child.passport_number}
+              />
             )}
           </View>
         )}
@@ -371,6 +411,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
   },
   childName: {
     fontSize: 28,

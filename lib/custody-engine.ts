@@ -9,6 +9,8 @@ const PATTERN_SEQUENCES: Record<Exclude<PatternType, 'custom'>, ('A' | 'B')[]> =
   '2_2_5_5': ['A','A','B','B','A','A','A','A','A','B','B','A','A','B','B','B','B','B'],
   // 2A, 2B, 3A, 2B, 2A, 3B = 14 day cycle
   '2_2_3': ['A','A','B','B','A','A','A','B','B','A','A','B','B','B'],
+  // 14 days A, 14 days B = 28 day cycle
+  '14_14': ['A','A','A','A','A','A','A','A','A','A','A','A','A','A','B','B','B','B','B','B','B','B','B','B','B','B','B','B'],
 };
 
 /**
@@ -28,7 +30,22 @@ export function getCustodyForDate(
   }
 
   const startDate = new Date(pattern.start_date + 'T00:00:00');
-  const daysDiff = differenceInCalendarDays(date, startDate);
+
+  // If handover_day is configured, adjust the start date to the first occurrence
+  // of that weekday on or after the original start_date
+  let effectiveStartDate = startDate;
+  if (pattern.handover_day !== null && pattern.handover_day !== undefined) {
+    const startWeekday = startDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const targetWeekday = pattern.handover_day;
+
+    // Calculate days to add to reach the target weekday
+    let daysToAdd = (targetWeekday - startWeekday + 7) % 7;
+
+    effectiveStartDate = new Date(startDate);
+    effectiveStartDate.setDate(startDate.getDate() + daysToAdd);
+  }
+
+  const daysDiff = differenceInCalendarDays(date, effectiveStartDate);
 
   let sequence: ('A' | 'B')[];
   if (pattern.pattern_type === 'custom' && pattern.custom_sequence) {
@@ -130,6 +147,8 @@ export function getPatternDescription(patternType: PatternType): string {
       return '2 Tage bei A, 2 bei B, 5 bei A, dann 2 bei B, 2 bei A, 5 bei B.';
     case '2_2_3':
       return '2 Tage bei A, 2 bei B, 3 bei A, dann umgekehrt.';
+    case '14_14':
+      return '2 Wochen bei einem Elternteil, dann 2 Wochen beim anderen.';
     case 'custom':
       return 'Individuelles Muster, frei konfigurierbar.';
   }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import { endOfMonth, format } from 'date-fns';
 import type { Expense } from '@/types';
 
 export function useExpenses(month?: string) {
@@ -15,9 +16,11 @@ export function useExpenses(month?: string) {
         .eq('family_id', family.id);
 
       if (month) {
+        // Use proper last day of month instead of hardcoded 31
+        const lastDay = format(endOfMonth(new Date(`${month}-01`)), 'yyyy-MM-dd');
         query = query
           .gte('date', `${month}-01`)
-          .lte('date', `${month}-31`);
+          .lte('date', lastDay);
       }
 
       const { data, error } = await query.order('date', { ascending: false });
@@ -48,7 +51,11 @@ export function useAddExpense() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenses', family?.id] });
+      // Invalidate all expense queries for this family (including different month filters)
+      queryClient.invalidateQueries({
+        queryKey: ['expenses'],
+        refetchType: 'active'
+      });
     },
   });
 }

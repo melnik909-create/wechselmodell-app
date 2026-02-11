@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { EXPENSE_CATEGORY_LABELS } from '@/types';
 import { formatDayMonth } from '@/lib/date-utils';
 import { COLORS } from '@/lib/constants';
 import { format } from 'date-fns';
+import { getSignedUrl } from '@/lib/image-upload';
 
 const CATEGORY_ICONS: Record<string, string> = {
   clothing: 'tshirt-crew',
@@ -29,10 +30,33 @@ export default function ExpensesScreen() {
   const { data: members } = useFamilyMembers();
   const [selectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const { data: expenses, isLoading } = useExpenses(selectedMonth);
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
 
   const parentAMember = members?.find((m) => m.role === 'parent_a');
   const balance =
     expenses && parentAMember ? calculateBalance(expenses, parentAMember.user_id) : null;
+
+  // Load signed URLs for receipt images
+  useEffect(() => {
+    if (expenses) {
+      const loadUrls = async () => {
+        const urls: Record<string, string> = {};
+        for (const expense of expenses) {
+          if (expense.receipt_url) {
+            try {
+              const signedUrl = await getSignedUrl('receipts', expense.receipt_url);
+              urls[expense.id] = signedUrl;
+            } catch (error) {
+              console.error('Failed to load receipt URL:', error);
+            }
+          }
+        }
+        setReceiptUrls(urls);
+      };
+      loadUrls();
+    }
+  }, [expenses]);
 
   const memberName = (userId: string) => {
     const member = members?.find((m) => m.user_id === userId);
@@ -118,6 +142,23 @@ export default function ExpensesScreen() {
                   <Text style={styles.paidByText}>{memberName(expense.paid_by)}</Text>
                 </View>
               </View>
+              {receiptUrls[expense.id] && (
+                <TouchableOpacity
+                  style={styles.receiptThumbnailContainer}
+                  onPress={() => setSelectedReceipt(receiptUrls[expense.id])}
+                  activeOpacity={0.7}
+                >
+                  <Image
+                    source={{ uri: receiptUrls[expense.id] }}
+                    style={styles.receiptThumbnail}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.receiptBadge}>
+                    <MaterialCommunityIcons name="receipt" size={12} color="#fff" />
+                    <Text style={styles.receiptBadgeText}>Beleg</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
 
@@ -129,6 +170,32 @@ export default function ExpensesScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Receipt Image Modal */}
+      <Modal
+        visible={!!selectedReceipt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedReceipt(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSelectedReceipt(null)}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setSelectedReceipt(null)}
+            >
+              <MaterialCommunityIcons name="close-circle" size={32} color="#fff" />
+            </TouchableOpacity>
+            {selectedReceipt && (
+              <Image
+                source={{ uri: selectedReceipt }}
+                style={styles.fullReceiptImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -263,5 +330,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#9CA3AF',
     marginTop: 8,
+  },
+  receiptThumbnailContainer: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  receiptThumbnail: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#F3F4F6',
+  },
+  receiptBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  receiptBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeModalButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+  },
+  fullReceiptImage: {
+    width: '90%',
+    height: '80%',
   },
 });

@@ -1,5 +1,5 @@
 export type Parent = 'parent_a' | 'parent_b';
-export type PatternType = '7_7' | '2_2_5_5' | '2_2_3' | 'custom';
+export type PatternType = '7_7' | '2_2_5_5' | '2_2_3' | '14_14' | 'custom';
 
 export type ExceptionReason = 'vacation' | 'sick' | 'swap' | 'holiday' | 'other';
 export type ExceptionStatus = 'proposed' | 'accepted' | 'rejected';
@@ -24,6 +24,16 @@ export type HandoverItemCategory =
   | 'toy'
   | 'other';
 
+export type EventCategory =
+  | 'doctor'
+  | 'school'
+  | 'daycare'
+  | 'sports'
+  | 'music'
+  | 'birthday'
+  | 'vacation'
+  | 'other';
+
 export type FamilyRole = 'parent_a' | 'parent_b';
 
 export interface Profile {
@@ -39,6 +49,8 @@ export interface Family {
   invite_code: string;
   created_by: string;
   created_at: string;
+  parent_a_label: string | null; // Custom display name for Parent A
+  parent_b_label: string | null; // Custom display name for Parent B
 }
 
 export interface FamilyMember {
@@ -67,6 +79,7 @@ export interface Child {
   daycare_phone: string | null;
   insurance_name: string | null;
   insurance_number: string | null;
+  passport_number: string | null; // Passport number for travel documentation
   notes: string | null;
 }
 
@@ -87,6 +100,7 @@ export interface CustodyPattern {
   starting_parent: Parent;
   custom_sequence: Parent[] | null;
   is_active: boolean;
+  handover_day: number | null; // 0=Sunday, 1=Monday, ..., 6=Saturday
 }
 
 export interface CustodyException {
@@ -148,6 +162,21 @@ export interface Settlement {
   settled_at: string;
 }
 
+export interface Event {
+  id: string;
+  family_id: string;
+  child_id: string | null;
+  title: string;
+  description: string | null;
+  date: string;
+  time: string | null;
+  category: EventCategory;
+  location: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // UI Helper Types
 export interface DayCustody {
   date: Date;
@@ -191,5 +220,60 @@ export const PATTERN_LABELS: Record<PatternType, string> = {
   '7_7': '7/7 (Woche/Woche)',
   '2_2_5_5': '2/2/5/5',
   '2_2_3': '2/2/3',
+  '14_14': '14/14 (2 Wochen/2 Wochen)',
   custom: 'Benutzerdefiniert',
+};
+
+export const EVENT_CATEGORY_LABELS: Record<EventCategory, string> = {
+  doctor: 'Arzt',
+  school: 'Schule',
+  daycare: 'Kita',
+  sports: 'Sport',
+  music: 'Musik',
+  birthday: 'Geburtstag',
+  vacation: 'Urlaub',
+  other: 'Sonstiges',
+};
+
+// SCHOOL TASKS
+export type TaskPriority = 'low' | 'medium' | 'high';
+export type TaskStatus = 'pending' | 'completed';
+
+export interface SchoolTask {
+  id: string;
+  family_id: string;
+  child_id: string | null;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  created_by: string;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+  low: 'Niedrig',
+  medium: 'Mittel',
+  high: 'Hoch',
+};
+
+// EVENT ATTENDANCES (RSVP)
+export type AttendanceStatus = 'yes' | 'no' | 'maybe';
+
+export interface EventAttendance {
+  id: string;
+  event_id: string;
+  user_id: string;
+  status: AttendanceStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
+  yes: 'Nehme teil',
+  no: 'Nehme nicht teil',
+  maybe: 'Vielleicht',
 };

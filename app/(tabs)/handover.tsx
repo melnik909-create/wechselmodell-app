@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,8 @@ import { formatDayMonth } from '@/lib/date-utils';
 import { COLORS } from '@/lib/constants';
 import { HANDOVER_CATEGORY_LABELS, type HandoverItemCategory } from '@/types';
 import type { Handover, HandoverItem } from '@/types';
+import ImagePickerButton from '@/components/ImagePickerButton';
+import { uploadImage, getSignedUrl } from '@/lib/image-upload';
 
 export default function HandoverScreen() {
   const { family, user } = useAuth();
@@ -33,6 +35,8 @@ export default function HandoverScreen() {
   });
 
   const [selectedHandover, setSelectedHandover] = useState<string | null>(null);
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
 
   const { data: items } = useQuery({
     queryKey: ['handover_items', selectedHandover],
@@ -54,6 +58,19 @@ export default function HandoverScreen() {
       const { error } = await supabase
         .from('handover_items')
         .update({ is_checked: checked })
+        .eq('id', itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['handover_items', selectedHandover] });
+    },
+  });
+
+  const updateItemPhoto = useMutation({
+    mutationFn: async ({ itemId, photoPath }: { itemId: string; photoPath: string | null }) => {
+      const { error } = await supabase
+        .from('handover_items')
+        .update({ photo_url: photoPath })
         .eq('id', itemId);
       if (error) throw error;
     },
@@ -107,6 +124,46 @@ export default function HandoverScreen() {
     },
   });
 
+  // Load signed URLs for photos
+  useEffect(() => {
+    if (items) {
+      const loadUrls = async () => {
+        const urls: Record<string, string> = {};
+        for (const item of items) {
+          if (item.photo_url) {
+            try {
+              const signedUrl = await getSignedUrl('handover-photos', item.photo_url);
+              urls[item.id] = signedUrl;
+            } catch (error) {
+              console.error('Failed to load photo URL:', error);
+            }
+          }
+        }
+        setPhotoUrls(urls);
+      };
+      loadUrls();
+    }
+  }, [items]);
+
+  const handlePhotoSelected = async (itemId: string, uri: string) => {
+    if (!family) return;
+    try {
+      const photoPath = await uploadImage(uri, 'handover-photos', family.id);
+      await updateItemPhoto.mutateAsync({ itemId, photoPath });
+      Alert.alert('Erfolg', 'Foto wurde hochgeladen.');
+    } catch (error: any) {
+      Alert.alert('Fehler', error.message || 'Foto konnte nicht hochgeladen werden.');
+    }
+  };
+
+  const handlePhotoRemoved = async (itemId: string) => {
+    try {
+      await updateItemPhoto.mutateAsync({ itemId, photoPath: null });
+    } catch (error: any) {
+      Alert.alert('Fehler', error.message || 'Foto konnte nicht entfernt werden.');
+    }
+  };
+
   const memberName = (userId: string) => {
     const member = members?.find((m) => m.user_id === userId);
     return member?.profile?.display_name ?? 'Unbekannt';
@@ -123,28 +180,50 @@ export default function HandoverScreen() {
         </View>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {items.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() => toggleItem.mutate({ itemId: item.id, checked: !item.is_checked })}
-              style={styles.checklistItem}
-              activeOpacity={0.7}
-            >
-              <View style={styles.checklistRow}>
-                <MaterialCommunityIcons
-                  name={item.is_checked ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
-                  size={24}
-                  color={item.is_checked ? '#10B981' : COLORS.textMuted}
-                />
-                <View style={styles.checklistText}>
-                  <Text style={[styles.checklistDescription, item.is_checked && styles.checkedText]}>
-                    {item.description}
-                  </Text>
-                  <Text style={styles.checklistCategory}>
-                    {HANDOVER_CATEGORY_LABELS[item.category]}
-                  </Text>
+            <View key={item.id} style={styles.checklistItem}>
+              <TouchableOpacity
+                onPress={() => toggleItem.mutate({ itemId: item.id, checked: !item.is_checked })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.checklistRow}>
+                  <MaterialCommunityIcons
+                    name={item.is_checked ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                    size={24}
+                    color={item.is_checked ? '#10B981' : COLORS.textMuted}
+                  />
+                  <View style={styles.checklistText}>
+                    <Text style={[styles.checklistDescription, item.is_checked && styles.checkedText]}>
+                      {item.description}
+                    </Text>
+                    <Text style={styles.checklistCategory}>
+                      {HANDOVER_CATEGORY_LABELS[item.category]}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
+                    style={styles.expandButton}
+                  >
+                    <MaterialCommunityIcons
+                      name={expandedItem === item.id ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={COLORS.textMuted}
+                    />
+                  </TouchableOpacity>
                 </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+
+              {expandedItem === item.id && (
+                <View style={styles.photoSection}>
+                  <Text style={styles.photoLabel}>Foto (optional)</Text>
+                  <ImagePickerButton
+                    imageUri={photoUrls[item.id] || null}
+                    onImageSelected={(uri, asset) => handlePhotoSelected(item.id, uri)}
+                    onImageRemoved={() => handlePhotoRemoved(item.id)}
+                    label="Foto hinzufügen"
+                  />
+                </View>
+              )}
+            </View>
           ))}
         </ScrollView>
       </SafeAreaView>
@@ -276,6 +355,21 @@ const styles = StyleSheet.create({
   checklistCategory: {
     fontSize: 12,
     color: '#9CA3AF',
+  },
+  expandButton: {
+    padding: 4,
+  },
+  photoSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  photoLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
   },
   createButton: {
     flexDirection: 'row',

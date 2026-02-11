@@ -91,6 +91,26 @@ export default function MoreScreen() {
         <Text style={styles.sectionTitle}>Einstellungen</Text>
 
         <SettingsItem
+          icon="calendar-sync"
+          label="Betreuungsmodell ändern"
+          onPress={() => router.push('/modal/change-pattern')}
+        />
+        <SettingsItem
+          icon="swap-horizontal-circle"
+          label="Übergabetag konfigurieren"
+          onPress={() => router.push('/modal/config-handover-day')}
+        />
+        <SettingsItem
+          icon="account-edit"
+          label="Elternnamen anpassen"
+          onPress={() => router.push('/modal/edit-parent-labels')}
+        />
+        <SettingsItem
+          icon="help-circle"
+          label="Anleitung"
+          onPress={() => router.push('/modal/guide')}
+        />
+        <SettingsItem
           icon="shield-check"
           label="Datenschutz"
           onPress={() => Alert.alert('Datenschutz', 'Deine Daten werden DSGVO-konform in Frankfurt gespeichert.')}

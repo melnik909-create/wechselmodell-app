@@ -37,11 +37,11 @@ export function formatShortDay(date: Date): string {
 }
 
 export function formatDayMonth(date: Date): string {
-  return formatDE(date, 'd. MMM');
+  return formatDE(date, 'dd.MM.');
 }
 
 export function formatFullDate(date: Date): string {
-  return formatDE(date, 'EEEE, d. MMMM yyyy');
+  return formatDE(date, 'dd.MM.yyyy');
 }
 
 export function formatMonthYear(date: Date): string {

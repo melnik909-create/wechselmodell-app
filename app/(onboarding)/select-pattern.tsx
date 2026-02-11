@@ -35,6 +35,7 @@ export default function SelectPatternScreen() {
       starting_parent: startingParent,
       custom_sequence: null,
       is_active: true,
+      handover_day: null,
     },
     today,
     addDays(today, 13),

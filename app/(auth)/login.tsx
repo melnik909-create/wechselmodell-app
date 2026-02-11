@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
 import { Link, router } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 
 export default function LoginScreen() {
@@ -29,9 +30,12 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>WechselPlaner</Text>
-        <Text style={styles.subtitle}>Gemeinsam fuer die Kinder</Text>
+      {/* Logo */}
+      <View style={styles.logoContainer}>
+        <MaterialCommunityIcons name="calendar-sync" size={60} color="#4F46E5" />
+        <Text style={styles.appName}>WechselPlaner</Text>
+        <Text style={styles.tagline}>Gemeinsam organisiert - Fair gelöst</Text>
+        <Text style={styles.subtagline}>So geht Co-Parenting ohne Kopfschmerzen</Text>
       </View>
 
       <View style={styles.form}>
@@ -89,18 +93,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  header: {
+  logoContainer: {
     alignItems: 'center',
     marginBottom: 48,
   },
-  title: {
+  appName: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#4F46E5',
+    marginTop: 12,
     marginBottom: 8,
   },
-  subtitle: {
+  tagline: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  subtagline: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
   form: {
     width: '100%',

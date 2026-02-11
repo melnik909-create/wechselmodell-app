@@ -24,8 +24,14 @@ export default function HomeScreen() {
     : null;
 
   const parentName = (parent: Parent) => {
+    // First check for custom label
+    if (parent === 'parent_a' && family?.parent_a_label) return family.parent_a_label;
+    if (parent === 'parent_b' && family?.parent_b_label) return family.parent_b_label;
+    // Then check profile name
     const member = members?.find((m) => m.role === parent);
-    return member?.profile?.display_name ?? (parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B');
+    if (member?.profile?.display_name) return member.profile.display_name;
+    // Fallback
+    return parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B';
   };
 
   return (
@@ -106,10 +112,16 @@ export default function HomeScreen() {
             onPress={() => router.push('/modal/add-exception')}
           />
           <QuickAction
-            icon="card-account-details"
-            label="Kind-Info"
-            color="#A855F7"
-            onPress={() => router.push('/(tabs)/more')}
+            icon="calendar-text"
+            label="Terminübersicht"
+            color="#8B5CF6"
+            onPress={() => router.push('/modal/events-overview')}
+          />
+          <QuickAction
+            icon="school"
+            label="Schule"
+            color="#EC4899"
+            onPress={() => router.push('/modal/school')}
           />
         </View>
 
