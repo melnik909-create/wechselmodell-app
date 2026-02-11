@@ -88,6 +88,8 @@ export default function ChildInfoScreen() {
 
   const hasHealthInfo = child.allergies || child.blood_type || child.doctor_name || child.insurance_name;
   const hasEducationInfo = child.school_name || child.daycare_name;
+  const hasEmergencyContacts = emergencyContacts && emergencyContacts.length > 0;
+  const hasAnyInfo = hasHealthInfo || hasEducationInfo || hasEmergencyContacts || child.notes;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -102,6 +104,20 @@ export default function ChildInfoScreen() {
             <Text style={styles.childBirthdate}>Geboren am {child.date_of_birth}</Text>
           )}
         </View>
+
+        {/* Empty State */}
+        {!hasAnyInfo && (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="information-outline" size={64} color="#9CA3AF" />
+            <Text style={styles.emptyTitle}>Noch keine Informationen</Text>
+            <Text style={styles.emptyText}>
+              Füge wichtige Informationen zu {child.name} hinzu wie Allergien, Arzt, Schule oder Notfallkontakte.
+            </Text>
+            <Text style={styles.emptyHint}>
+              💡 Diese Funktion wird in Kürze verfügbar sein
+            </Text>
+          </View>
+        )}
 
         {/* Health Section */}
         {hasHealthInfo && (
@@ -528,5 +544,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#374151',
     lineHeight: 22,
+  },
+  emptyState: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  emptyHint: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });
