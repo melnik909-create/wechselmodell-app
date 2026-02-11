@@ -1,17 +1,13 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { useCustodyPattern } from '@/hooks/useFamily';
-import { getCustodyForDate, buildExceptionMap } from '@/lib/custody-engine';
+import { getCustodyForDate } from '@/lib/custody-engine';
 import { EXCEPTION_REASON_LABELS, type ExceptionReason, type Parent } from '@/types';
-import { COLORS } from '@/lib/constants';
 
 const REASONS: ExceptionReason[] = ['vacation', 'sick', 'swap', 'holiday', 'other'];
 
@@ -59,80 +55,226 @@ export default function AddExceptionModal() {
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
-        <TouchableOpacity onPress={() => router.back()}>
-          <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-gray-900">Ausnahme hinzufuegen</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Date */}
+          <Input
+            label="Datum (YYYY-MM-DD)"
+            placeholder="2026-02-15"
+            value={date}
+            onChangeText={setDate}
+          />
 
-      <ScrollView className="flex-1 px-4 py-4" keyboardShouldPersistTaps="handled">
-        {/* Date */}
-        <Input
-          label="Datum (YYYY-MM-DD)"
-          placeholder="2026-02-15"
-          value={date}
-          onChangeText={setDate}
-        />
+          {normalParent && (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                Normalerweise bei: <Text style={styles.infoTextBold}>
+                  {normalParent === 'parent_a' ? 'Elternteil A' : 'Elternteil B'}
+                </Text>
+              </Text>
+              <Text style={[styles.infoText, styles.infoTextMargin]}>
+                Wechsel zu: <Text style={styles.infoTextHighlight}>
+                  {newParent === 'parent_a' ? 'Elternteil A' : 'Elternteil B'}
+                </Text>
+              </Text>
+            </View>
+          )}
 
-        {normalParent && (
-          <View className="bg-gray-50 rounded-xl p-3 mb-4">
-            <Text className="text-sm text-gray-500">
-              Normalerweise bei: <Text className="font-semibold text-gray-700">
-                {normalParent === 'parent_a' ? 'Elternteil A' : 'Elternteil B'}
-              </Text>
-            </Text>
-            <Text className="text-sm text-gray-500 mt-1">
-              Wechsel zu: <Text className="font-semibold text-indigo-600">
-                {newParent === 'parent_a' ? 'Elternteil A' : 'Elternteil B'}
-              </Text>
-            </Text>
+          {/* Reason */}
+          <Text style={styles.label}>Grund</Text>
+          <View style={styles.chipContainer}>
+            {REASONS.map(r => (
+              <TouchableOpacity
+                key={r}
+                onPress={() => setReason(r)}
+                style={[
+                  styles.chip,
+                  reason === r ? styles.chipSelected : styles.chipUnselected
+                ]}
+              >
+                <Text style={[
+                  styles.chipText,
+                  reason === r ? styles.chipTextSelected : styles.chipTextUnselected
+                ]}>
+                  {EXCEPTION_REASON_LABELS[r]}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
 
-        {/* Reason */}
-        <Text className="text-sm font-medium text-gray-700 mb-2">Grund</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {REASONS.map(r => (
-            <TouchableOpacity
-              key={r}
-              onPress={() => setReason(r)}
-              className={`px-3 py-2 rounded-xl border ${
-                reason === r
-                  ? 'border-indigo-600 bg-indigo-50'
-                  : 'border-gray-200 bg-gray-50'
-              }`}
-            >
-              <Text className={`text-sm ${
-                reason === r ? 'text-indigo-600 font-semibold' : 'text-gray-600'
-              }`}>
-                {EXCEPTION_REASON_LABELS[r]}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {/* Note */}
+          <Input
+            label="Notiz (optional)"
+            placeholder="z.B. Reise nach..."
+            value={note}
+            onChangeText={setNote}
+            multiline
+            numberOfLines={3}
+          />
+        </ScrollView>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.button, mutation.isPending && styles.buttonDisabled]}
+            onPress={() => mutation.mutate()}
+            disabled={mutation.isPending}
+          >
+            <Text style={styles.buttonText}>
+              {mutation.isPending ? 'Speichern...' : 'Ausnahme vorschlagen'}
+            </Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Note */}
-        <Input
-          label="Notiz (optional)"
-          placeholder="z.B. Reise nach..."
-          value={note}
-          onChangeText={setNote}
-          multiline
-          numberOfLines={3}
-        />
-      </ScrollView>
-
-      <View className="px-4 pb-6">
-        <Button
-          title="Ausnahme vorschlagen"
-          onPress={() => mutation.mutate()}
-          loading={mutation.isPending}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+function Input({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  multiline = false,
+  numberOfLines = 1,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  multiline?: boolean;
+  numberOfLines?: number;
+}) {
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, multiline && styles.inputMultiline]}
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        placeholderTextColor="#9CA3AF"
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#111',
+  },
+  inputMultiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  infoBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  infoTextBold: {
+    fontWeight: '600',
+    color: '#374151',
+  },
+  infoTextHighlight: {
+    fontWeight: '600',
+    color: '#4F46E5',
+  },
+  infoTextMargin: {
+    marginTop: 4,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  chipSelected: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+  },
+  chipUnselected: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  chipText: {
+    fontSize: 14,
+  },
+  chipTextSelected: {
+    color: '#4F46E5',
+    fontWeight: '600',
+  },
+  chipTextUnselected: {
+    color: '#6B7280',
+  },
+  buttonContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  button: {
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

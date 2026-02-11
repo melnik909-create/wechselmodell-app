@@ -1,16 +1,11 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { useAddExpense } from '@/hooks/useExpenses';
 import { useChildren } from '@/hooks/useFamily';
 import { EXPENSE_CATEGORY_LABELS, type ExpenseCategory } from '@/types';
-import { COLORS } from '@/lib/constants';
 
 const CATEGORIES: ExpenseCategory[] = [
   'clothing', 'medical', 'school', 'daycare', 'sports',
@@ -31,7 +26,7 @@ export default function AddExpenseModal() {
   async function handleSave() {
     const numAmount = parseFloat(amount.replace(',', '.'));
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Fehler', 'Bitte einen gueltigen Betrag eingeben.');
+      Alert.alert('Fehler', 'Bitte einen gültigen Betrag eingeben.');
       return;
     }
     if (!description.trim()) {
@@ -58,127 +53,284 @@ export default function AddExpenseModal() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
-        <TouchableOpacity onPress={() => router.back()}>
-          <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-gray-900">Neue Ausgabe</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Amount */}
+          <Input
+            label="Betrag (EUR)"
+            placeholder="0,00"
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="numeric"
+          />
 
-      <ScrollView className="flex-1 px-4 py-4" keyboardShouldPersistTaps="handled">
-        {/* Amount */}
-        <Input
-          label="Betrag (EUR)"
-          placeholder="0,00"
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="numeric"
-        />
+          {/* Description */}
+          <Input
+            label="Beschreibung"
+            placeholder="z.B. Winterjacke"
+            value={description}
+            onChangeText={setDescription}
+          />
 
-        {/* Description */}
-        <Input
-          label="Beschreibung"
-          placeholder="z.B. Winterjacke"
-          value={description}
-          onChangeText={setDescription}
-        />
-
-        {/* Category */}
-        <Text className="text-sm font-medium text-gray-700 mb-2">Kategorie</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {CATEGORIES.map(cat => (
-            <TouchableOpacity
-              key={cat}
-              onPress={() => setCategory(cat)}
-              className={`px-3 py-2 rounded-xl border ${
-                category === cat
-                  ? 'border-indigo-600 bg-indigo-50'
-                  : 'border-gray-200 bg-gray-50'
-              }`}
-            >
-              <Text className={`text-sm ${
-                category === cat ? 'text-indigo-600 font-semibold' : 'text-gray-600'
-              }`}>
-                {EXPENSE_CATEGORY_LABELS[cat]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Child */}
-        {children && children.length > 0 && (
-          <>
-            <Text className="text-sm font-medium text-gray-700 mb-2">Kind</Text>
-            <View className="flex-row flex-wrap gap-2 mb-4">
+          {/* Category */}
+          <Text style={styles.label}>Kategorie</Text>
+          <View style={styles.chipContainer}>
+            {CATEGORIES.map(cat => (
               <TouchableOpacity
-                onPress={() => setSelectedChild(null)}
-                className={`px-3 py-2 rounded-xl border ${
-                  !selectedChild
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-200 bg-gray-50'
-                }`}
+                key={cat}
+                onPress={() => setCategory(cat)}
+                style={[
+                  styles.chip,
+                  category === cat ? styles.chipSelected : styles.chipUnselected
+                ]}
               >
-                <Text className={`text-sm ${!selectedChild ? 'text-indigo-600 font-semibold' : 'text-gray-600'}`}>
-                  Alle
+                <Text style={[
+                  styles.chipText,
+                  category === cat ? styles.chipTextSelected : styles.chipTextUnselected
+                ]}>
+                  {EXPENSE_CATEGORY_LABELS[cat]}
                 </Text>
               </TouchableOpacity>
-              {children.map(child => (
+            ))}
+          </View>
+
+          {/* Child */}
+          {children && children.length > 0 && (
+            <>
+              <Text style={styles.label}>Kind</Text>
+              <View style={styles.chipContainer}>
                 <TouchableOpacity
-                  key={child.id}
-                  onPress={() => setSelectedChild(child.id)}
-                  className={`px-3 py-2 rounded-xl border ${
-                    selectedChild === child.id
-                      ? 'border-indigo-600 bg-indigo-50'
-                      : 'border-gray-200 bg-gray-50'
-                  }`}
+                  onPress={() => setSelectedChild(null)}
+                  style={[
+                    styles.chip,
+                    !selectedChild ? styles.chipSelected : styles.chipUnselected
+                  ]}
                 >
-                  <Text className={`text-sm ${
-                    selectedChild === child.id ? 'text-indigo-600 font-semibold' : 'text-gray-600'
-                  }`}>
-                    {child.name}
+                  <Text style={[
+                    styles.chipText,
+                    !selectedChild ? styles.chipTextSelected : styles.chipTextUnselected
+                  ]}>
+                    Alle
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
+                {children.map(child => (
+                  <TouchableOpacity
+                    key={child.id}
+                    onPress={() => setSelectedChild(child.id)}
+                    style={[
+                      styles.chip,
+                      selectedChild === child.id ? styles.chipSelected : styles.chipUnselected
+                    ]}
+                  >
+                    <Text style={[
+                      styles.chipText,
+                      selectedChild === child.id ? styles.chipTextSelected : styles.chipTextUnselected
+                    ]}>
+                      {child.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
-        {/* Split Type */}
-        <Text className="text-sm font-medium text-gray-700 mb-2">Aufteilung</Text>
-        <View className="flex-row gap-3 mb-6">
+          {/* Split Type */}
+          <Text style={styles.label}>Aufteilung</Text>
+          <View style={styles.splitContainer}>
+            <TouchableOpacity
+              onPress={() => setSplitType('50_50')}
+              style={[
+                styles.splitButton,
+                splitType === '50_50' ? styles.splitButtonSelected : styles.splitButtonUnselected
+              ]}
+            >
+              <Text style={[
+                styles.splitButtonText,
+                splitType === '50_50' ? styles.splitButtonTextSelected : styles.splitButtonTextUnselected
+              ]}>
+                50 / 50
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setSplitType('custom')}
+              style={[
+                styles.splitButton,
+                splitType === 'custom' ? styles.splitButtonSelected : styles.splitButtonUnselected
+              ]}
+            >
+              <Text style={[
+                styles.splitButtonText,
+                splitType === 'custom' ? styles.splitButtonTextSelected : styles.splitButtonTextUnselected
+              ]}>
+                Individuell
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        <View style={styles.buttonContainer}>
           <TouchableOpacity
-            onPress={() => setSplitType('50_50')}
-            className={`flex-1 py-3 rounded-xl items-center border-2 ${
-              splitType === '50_50' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'
-            }`}
+            style={[styles.button, addExpense.isPending && styles.buttonDisabled]}
+            onPress={handleSave}
+            disabled={addExpense.isPending}
           >
-            <Text className={`font-semibold ${splitType === '50_50' ? 'text-indigo-600' : 'text-gray-500'}`}>
-              50 / 50
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setSplitType('custom')}
-            className={`flex-1 py-3 rounded-xl items-center border-2 ${
-              splitType === 'custom' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200'
-            }`}
-          >
-            <Text className={`font-semibold ${splitType === 'custom' ? 'text-indigo-600' : 'text-gray-500'}`}>
-              Individuell
+            <Text style={styles.buttonText}>
+              {addExpense.isPending ? 'Speichern...' : 'Ausgabe speichern'}
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-
-      <View className="px-4 pb-6">
-        <Button
-          title="Ausgabe speichern"
-          onPress={handleSave}
-          loading={addExpense.isPending}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+function Input({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  keyboardType = 'default',
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  keyboardType?: 'default' | 'numeric' | 'phone-pad';
+}) {
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={styles.input}
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        placeholderTextColor="#9CA3AF"
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#111',
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  chipSelected: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+  },
+  chipUnselected: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  chipText: {
+    fontSize: 14,
+  },
+  chipTextSelected: {
+    color: '#4F46E5',
+    fontWeight: '600',
+  },
+  chipTextUnselected: {
+    color: '#6B7280',
+  },
+  splitContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  splitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  splitButtonSelected: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+  },
+  splitButtonUnselected: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  splitButtonText: {
+    fontWeight: '600',
+  },
+  splitButtonTextSelected: {
+    color: '#4F46E5',
+  },
+  splitButtonTextUnselected: {
+    color: '#6B7280',
+  },
+  buttonContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  button: {
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
