@@ -10,7 +10,7 @@ import type { Child, EmergencyContact } from '@/types';
 export default function ChildInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const { data: child, isLoading } = useQuery({
+  const { data: child, isLoading, error: queryError } = useQuery({
     queryKey: ['child', id],
     queryFn: async (): Promise<Child | null> => {
       if (!id) return null;
@@ -40,11 +40,43 @@ export default function ChildInfoScreen() {
     enabled: !!id,
   });
 
-  if (isLoading || !child) {
+  if (!id) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loading}>
+          <Text style={styles.loadingText}>Keine ID gefunden</Text>
+          <Text style={styles.errorText}>Bitte gehe zurück und versuche es erneut.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loading}>
           <Text style={styles.loadingText}>Laden...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (queryError) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loading}>
+          <Text style={styles.errorText}>Fehler beim Laden</Text>
+          <Text style={styles.errorDetail}>{String(queryError)}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!child) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loading}>
+          <Text style={styles.errorText}>Kind nicht gefunden</Text>
         </View>
       </SafeAreaView>
     );
@@ -273,10 +305,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    padding: 20,
   },
   loadingText: {
     fontSize: 16,
     color: '#6B7280',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorDetail: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   headerCard: {
     backgroundColor: '#fff',
