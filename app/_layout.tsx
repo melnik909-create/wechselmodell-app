@@ -1,10 +1,8 @@
-import '../global.css';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/lib/auth';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View } from 'react-native';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,10 +15,9 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(onboarding)" />
@@ -32,6 +29,6 @@ export default function RootLayout() {
           </Stack>
         </AuthProvider>
       </QueryClientProvider>
-    </GestureHandlerRootView>
+    </View>
   );
 }

@@ -1,4 +1,3 @@
-import 'react-native-url-polyfill/dist/polyfill';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -9,10 +8,10 @@ const ExpoSecureStoreAdapter = {
     return SecureStore.getItemAsync(key);
   },
   setItem: (key: string, value: string) => {
-    SecureStore.setItemAsync(key, value);
+    return SecureStore.setItemAsync(key, value);
   },
   removeItem: (key: string) => {
-    SecureStore.deleteItemAsync(key);
+    return SecureStore.deleteItemAsync(key);
   },
 };
 

@@ -1,10 +1,7 @@
 import { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuth } from '@/lib/auth';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -30,59 +27,103 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <ScrollView
-          contentContainerClassName="flex-grow justify-center px-6 py-8"
-          keyboardShouldPersistTaps="handled"
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Wechselmodell</Text>
+        <Text style={styles.subtitle}>Gemeinsam fuer die Kinder</Text>
+      </View>
+
+      <View style={styles.form}>
+        <TextInput
+          style={styles.input}
+          placeholder="E-Mail"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Passwort"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
         >
-          {/* Logo / Header */}
-          <View className="items-center mb-12">
-            <View className="w-20 h-20 bg-indigo-600 rounded-2xl items-center justify-center mb-4">
-              <Text className="text-white text-3xl font-bold">W</Text>
-            </View>
-            <Text className="text-2xl font-bold text-gray-900">Wechselmodell</Text>
-            <Text className="text-base text-gray-500 mt-1">
-              Gemeinsam fuer die Kinder
-            </Text>
-          </View>
+          <Text style={styles.buttonText}>
+            {loading ? 'Laden...' : 'Anmelden'}
+          </Text>
+        </TouchableOpacity>
 
-          {/* Form */}
-          <View>
-            <Input
-              label="E-Mail"
-              placeholder="deine@email.de"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <Input
-              label="Passwort"
-              placeholder="Dein Passwort"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-
-            <Button
-              title="Anmelden"
-              onPress={handleLogin}
-              loading={loading}
-            />
-
-            <View className="flex-row justify-center mt-6">
-              <Text className="text-gray-500">Noch kein Konto? </Text>
-              <Link href="/(auth)/register" asChild>
-                <Text className="text-indigo-600 font-semibold">Registrieren</Text>
-              </Link>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <View style={styles.footer}>
+          <Text>Noch kein Konto? </Text>
+          <Link href="/(auth)/register">
+            <Text style={styles.link}>Registrieren</Text>
+          </Link>
+        </View>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+  form: {
+    width: '100%',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  link: {
+    color: '#4F46E5',
+    fontWeight: '600',
+  },
+});
