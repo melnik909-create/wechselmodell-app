@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Card } from '@/components/ui/Card';
 import { useCustodyPattern, useCustodyExceptions, useFamilyMembers } from '@/hooks/useFamily';
 import { getCustodyForDate, buildExceptionMap, formatDateKey } from '@/lib/custody-engine';
-import { getMonthDays, formatMonthYear, formatShortDay, isToday, isSameDay, addDays, startOfMonth } from '@/lib/date-utils';
+import { getMonthDays, formatMonthYear, isToday } from '@/lib/date-utils';
 import { PARENT_COLORS, COLORS } from '@/lib/constants';
 import { addMonths, subMonths, isSameMonth } from 'date-fns';
 import type { Parent } from '@/types';
@@ -22,16 +21,16 @@ export default function CalendarScreen() {
   const monthDays = useMemo(() => getMonthDays(currentMonth), [currentMonth]);
 
   const parentName = (parent: Parent) => {
-    const member = members?.find(m => m.role === parent);
+    const member = members?.find((m) => m.role === parent);
     return member?.profile?.display_name ?? (parent === 'parent_a' ? 'A' : 'B');
   };
 
   function goToPreviousMonth() {
-    setCurrentMonth(prev => subMonths(prev, 1));
+    setCurrentMonth((prev) => subMonths(prev, 1));
   }
 
   function goToNextMonth() {
-    setCurrentMonth(prev => addMonths(prev, 1));
+    setCurrentMonth((prev) => addMonths(prev, 1));
   }
 
   function goToToday() {
@@ -39,38 +38,36 @@ export default function CalendarScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      <ScrollView className="flex-1" contentContainerClassName="px-4 py-4">
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Month Navigation */}
-        <View className="flex-row items-center justify-between mb-4">
-          <TouchableOpacity onPress={goToPreviousMonth} className="p-2">
+        <View style={styles.navigation}>
+          <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
             <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.text} />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={goToToday}>
-            <Text className="text-lg font-bold text-gray-900">
-              {formatMonthYear(currentMonth)}
-            </Text>
+            <Text style={styles.monthTitle}>{formatMonthYear(currentMonth)}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={goToNextMonth} className="p-2">
+          <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
             <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.text} />
           </TouchableOpacity>
         </View>
 
         {/* Calendar Grid */}
-        <Card className="mb-4">
+        <View style={styles.card}>
           {/* Weekday Headers */}
-          <View className="flex-row mb-2">
-            {WEEKDAY_HEADERS.map(day => (
-              <View key={day} className="flex-1 items-center">
-                <Text className="text-xs font-semibold text-gray-500">{day}</Text>
+          <View style={styles.weekdayRow}>
+            {WEEKDAY_HEADERS.map((day) => (
+              <View key={day} style={styles.weekdayCell}>
+                <Text style={styles.weekdayText}>{day}</Text>
               </View>
             ))}
           </View>
 
           {/* Day Grid */}
-          <View className="flex-row flex-wrap">
+          <View style={styles.dayGrid}>
             {monthDays.map((day, i) => {
               const inCurrentMonth = isSameMonth(day, currentMonth);
               const today = isToday(day);
@@ -79,62 +76,168 @@ export default function CalendarScreen() {
                 : null;
               const dateKey = formatDateKey(day);
               const hasException = exceptions?.some(
-                e => e.date === dateKey && e.status === 'accepted'
+                (e) => e.date === dateKey && e.status === 'accepted'
               );
 
               return (
-                <View
-                  key={i}
-                  className="items-center justify-center py-1.5"
-                  style={{ width: '14.28%' }}
-                >
+                <View key={i} style={styles.dayCell}>
                   <View
-                    className={`w-9 h-9 rounded-full items-center justify-center ${
-                      today ? 'border-2 border-gray-900' : ''
-                    }`}
-                    style={
-                      custodyParent && inCurrentMonth
-                        ? { backgroundColor: PARENT_COLORS[custodyParent] + (inCurrentMonth ? 'CC' : '40') }
-                        : { backgroundColor: 'transparent' }
-                    }
+                    style={[
+                      styles.dayBadge,
+                      custodyParent && inCurrentMonth && {
+                        backgroundColor:
+                          PARENT_COLORS[custodyParent] + (inCurrentMonth ? 'CC' : '40'),
+                      },
+                      today && styles.dayBadgeToday,
+                    ]}
                   >
                     <Text
-                      className={`text-sm ${
-                        !inCurrentMonth
-                          ? 'text-gray-300'
-                          : custodyParent
-                          ? 'text-white font-medium'
-                          : 'text-gray-700'
-                      }`}
+                      style={[
+                        styles.dayText,
+                        !inCurrentMonth && styles.dayTextMuted,
+                        custodyParent && inCurrentMonth && styles.dayTextBold,
+                      ]}
                     >
                       {day.getDate()}
                     </Text>
                   </View>
                   {hasException && inCurrentMonth && (
-                    <View className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-0.5" />
+                    <View style={styles.exceptionDot} />
                   )}
                 </View>
               );
             })}
           </View>
-        </Card>
+        </View>
 
         {/* Legend */}
-        <View className="flex-row justify-center gap-6">
-          <View className="flex-row items-center gap-2">
-            <View className="w-3 h-3 rounded-full" style={{ backgroundColor: PARENT_COLORS.parent_a }} />
-            <Text className="text-xs text-gray-500">{parentName('parent_a')}</Text>
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View
+              style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_a }]}
+            />
+            <Text style={styles.legendText}>{parentName('parent_a')}</Text>
           </View>
-          <View className="flex-row items-center gap-2">
-            <View className="w-3 h-3 rounded-full" style={{ backgroundColor: PARENT_COLORS.parent_b }} />
-            <Text className="text-xs text-gray-500">{parentName('parent_b')}</Text>
+          <View style={styles.legendItem}>
+            <View
+              style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_b }]}
+            />
+            <Text style={styles.legendText}>{parentName('parent_b')}</Text>
           </View>
-          <View className="flex-row items-center gap-2">
-            <View className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-            <Text className="text-xs text-gray-500">Ausnahme</Text>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, styles.exceptionDot]} />
+            <Text style={styles.legendText}>Ausnahme</Text>
           </View>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  navigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  navButton: {
+    padding: 8,
+  },
+  monthTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111',
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  weekdayRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  weekdayCell: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  weekdayText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  dayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: '14.28%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  dayBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayBadgeToday: {
+    borderWidth: 2,
+    borderColor: '#111',
+  },
+  dayText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  dayTextMuted: {
+    color: '#D1D5DB',
+  },
+  dayTextBold: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  exceptionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+    marginTop: 2,
+  },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 24,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+});

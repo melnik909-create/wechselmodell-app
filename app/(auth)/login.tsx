@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 
@@ -7,6 +7,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
@@ -49,6 +50,16 @@ export default function LoginScreen() {
           onChangeText={setPassword}
           secureTextEntry
         />
+
+        <View style={styles.rememberMeContainer}>
+          <Switch
+            value={rememberMe}
+            onValueChange={setRememberMe}
+            trackColor={{ false: '#D1D5DB', true: '#818CF8' }}
+            thumbColor={rememberMe ? '#4F46E5' : '#F3F4F6'}
+          />
+          <Text style={styles.rememberMeText}>Anmeldung merken</Text>
+        </View>
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -101,6 +112,16 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     fontSize: 16,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  rememberMeText: {
+    fontSize: 14,
+    color: '#374151',
+    marginLeft: 8,
   },
   button: {
     backgroundColor: '#4F46E5',
