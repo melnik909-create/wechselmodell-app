@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { View, Text, Alert, Share } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Share,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { generateInviteCode, COLORS } from '@/lib/constants';
+import { generateInviteCode } from '@/lib/constants';
 
 export default function CreateFamilyScreen() {
   const { user, refreshFamily } = useAuth();
@@ -71,67 +77,188 @@ export default function CreateFamilyScreen() {
 
   if (created) {
     return (
-      <SafeAreaView className="flex-1 bg-white px-6">
-        <View className="flex-1 justify-center items-center">
-          <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-6">
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.createdContainer}>
+          <View style={styles.successIcon}>
             <MaterialCommunityIcons name="check-circle" size={48} color="#10B981" />
           </View>
-          <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
-            Familie erstellt!
-          </Text>
-          <Text className="text-base text-gray-500 text-center mb-8">
+          <Text style={styles.successTitle}>Familie erstellt!</Text>
+          <Text style={styles.successSubtitle}>
             Teile diesen Code mit dem anderen Elternteil:
           </Text>
 
-          <Card className="w-full items-center mb-8">
-            <Text className="text-4xl font-mono font-bold text-indigo-600 tracking-widest">
-              {inviteCode}
-            </Text>
-          </Card>
+          <View style={styles.codeCard}>
+            <Text style={styles.codeText}>{inviteCode}</Text>
+          </View>
 
-          <Button
-            title="Code teilen"
-            onPress={handleShare}
-            variant="outline"
-            icon={<MaterialCommunityIcons name="share-variant" size={20} color={COLORS.primary} />}
-          />
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <MaterialCommunityIcons name="share-variant" size={20} color="#4F46E5" />
+            <Text style={styles.shareButtonText}>Code teilen</Text>
+          </TouchableOpacity>
         </View>
 
-        <View className="pb-6">
-          <Button
-            title="Weiter: Kinder hinzufuegen"
+        <View style={styles.bottomButton}>
+          <TouchableOpacity
+            style={styles.button}
             onPress={() => router.push('/(onboarding)/add-children')}
-          />
+          >
+            <Text style={styles.buttonText}>Weiter: Kinder hinzufuegen</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white px-6">
-      <View className="flex-1 justify-center">
-        <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
-          Familie erstellen
-        </Text>
-        <Text className="text-base text-gray-500 text-center mb-8">
-          Gib eurer Familie einen Namen.
-        </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Familie erstellen</Text>
+        <Text style={styles.subtitle}>Gib eurer Familie einen Namen.</Text>
 
-        <Input
-          label="Familienname"
-          placeholder="z.B. Familie Mueller"
-          value={familyName}
-          onChangeText={setFamilyName}
-        />
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Familienname</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="z.B. Familie Mueller"
+            value={familyName}
+            onChangeText={setFamilyName}
+            editable={!loading}
+          />
+        </View>
       </View>
 
-      <View className="pb-6">
-        <Button
-          title="Familie erstellen"
+      <View style={styles.bottomButton}>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleCreate}
-          loading={loading}
-        />
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Familie erstellen</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: 24,
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  createdContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#D1FAE5',
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  codeCard: {
+    width: '100%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  codeText: {
+    fontSize: 36,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontWeight: 'bold',
+    color: '#4F46E5',
+    letterSpacing: 4,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#4F46E5',
+    backgroundColor: '#fff',
+  },
+  shareButtonText: {
+    color: '#4F46E5',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  bottomButton: {
+    paddingBottom: 24,
+  },
+  button: {
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

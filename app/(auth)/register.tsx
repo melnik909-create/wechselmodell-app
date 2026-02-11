@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { Link, router } from 'expo-router';
-import { useAuth } from '@/lib/auth';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/lib/auth';
 
 export default function RegisterScreen() {
   const { signUp } = useAuth();
@@ -44,69 +53,94 @@ export default function RegisterScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+        style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerClassName="flex-grow justify-center px-6 py-8"
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View className="items-center mb-10">
-            <Text className="text-2xl font-bold text-gray-900">Konto erstellen</Text>
-            <Text className="text-base text-gray-500 mt-1">
-              Starte jetzt mit Wechselmodell
-            </Text>
+          <View style={styles.header}>
+            <Text style={styles.title}>Konto erstellen</Text>
+            <Text style={styles.subtitle}>Starte jetzt mit Wechselmodell</Text>
           </View>
 
           {/* Form */}
-          <View>
-            <Input
-              label="Name"
-              placeholder="Dein Name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-            <Input
-              label="E-Mail"
-              placeholder="deine@email.de"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <Input
-              label="Passwort"
-              placeholder="Mindestens 6 Zeichen"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-            <Input
-              label="Passwort bestaetigen"
-              placeholder="Passwort wiederholen"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Dein Name"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
 
-            <Text className="text-xs text-gray-400 mb-4 text-center">
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>E-Mail</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="deine@email.de"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Passwort</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Mindestens 6 Zeichen"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Passwort bestaetigen</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Passwort wiederholen"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                editable={!loading}
+              />
+            </View>
+
+            <Text style={styles.disclaimer}>
               Mit der Registrierung stimmst du unserer Datenschutzerklaerung zu.
             </Text>
 
-            <Button
-              title="Registrieren"
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleRegister}
-              loading={loading}
-            />
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Registrieren</Text>
+              )}
+            </TouchableOpacity>
 
-            <View className="flex-row justify-center mt-6">
-              <Text className="text-gray-500">Bereits ein Konto? </Text>
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Bereits ein Konto? </Text>
               <Link href="/(auth)/login" asChild>
-                <Text className="text-indigo-600 font-semibold">Anmelden</Text>
+                <TouchableOpacity>
+                  <Text style={styles.link}>Anmelden</Text>
+                </TouchableOpacity>
               </Link>
             </View>
           </View>
@@ -115,3 +149,87 @@ export default function RegisterScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  form: {
+    width: '100%',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  disclaimer: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  button: {
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  footerText: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  link: {
+    color: '#4F46E5',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});

@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { View, Text, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -73,36 +79,113 @@ export default function JoinFamilyScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white px-6">
-      <View className="flex-1 justify-center">
-        <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
-          Familie beitreten
-        </Text>
-        <Text className="text-base text-gray-500 text-center mb-8">
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Familie beitreten</Text>
+        <Text style={styles.subtitle}>
           Gib den Einladungscode ein, den du vom anderen Elternteil erhalten hast.
         </Text>
 
-        <Input
-          label="Einladungscode"
-          placeholder="z.B. A3K9X2"
-          value={code}
-          onChangeText={(text) => setCode(text.toUpperCase())}
-          autoCapitalize="characters"
-        />
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Einladungscode</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="z.B. A3K9X2"
+            value={code}
+            onChangeText={(text) => setCode(text.toUpperCase())}
+            autoCapitalize="characters"
+            editable={!loading}
+          />
+        </View>
       </View>
 
-      <View className="pb-6 gap-3">
-        <Button
-          title="Beitreten"
+      <View style={styles.bottomButtons}>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleJoin}
-          loading={loading}
-        />
-        <Button
-          title="Zurueck"
-          onPress={() => router.back()}
-          variant="ghost"
-        />
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Beitreten</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.buttonGhost} onPress={() => router.back()}>
+          <Text style={styles.buttonGhostText}>Zurueck</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: 24,
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  bottomButtons: {
+    paddingBottom: 24,
+    gap: 12,
+  },
+  button: {
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonGhost: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonGhostText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

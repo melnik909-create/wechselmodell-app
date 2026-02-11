@@ -1,10 +1,16 @@
 import { useState } from 'react';
-import { View, Text, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { COLORS, PARENT_COLORS } from '@/lib/constants';
@@ -32,7 +38,7 @@ export default function SelectPatternScreen() {
     },
     today,
     addDays(today, 13),
-    [],
+    []
   );
 
   async function handleSave() {
@@ -63,31 +69,28 @@ export default function SelectPatternScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1 px-6" contentContainerClassName="py-8">
-        <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
-          Betreuungsmodell
-        </Text>
-        <Text className="text-base text-gray-500 text-center mb-8">
-          Wie teilt ihr die Betreuung auf?
-        </Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Betreuungsmodell</Text>
+        <Text style={styles.subtitle}>Wie teilt ihr die Betreuung auf?</Text>
 
         {/* Pattern Options */}
-        <View className="gap-3 mb-8">
+        <View style={styles.patternList}>
           {(Object.keys(PATTERN_LABELS) as PatternType[])
-            .filter(p => p !== 'custom')
+            .filter((p) => p !== 'custom')
             .map((pattern) => (
-              <Card
+              <TouchableOpacity
                 key={pattern}
+                style={[
+                  styles.patternCard,
+                  selectedPattern === pattern && styles.patternCardSelected,
+                ]}
                 onPress={() => setSelectedPattern(pattern)}
-                className={selectedPattern === pattern ? 'border-indigo-600 border-2' : ''}
               >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-gray-900">
-                      {PATTERN_LABELS[pattern]}
-                    </Text>
-                    <Text className="text-xs text-gray-500 mt-1">
+                <View style={styles.patternCardContent}>
+                  <View style={styles.patternCardText}>
+                    <Text style={styles.patternTitle}>{PATTERN_LABELS[pattern]}</Text>
+                    <Text style={styles.patternDescription}>
                       {getPatternDescription(pattern)}
                     </Text>
                   </View>
@@ -95,91 +98,286 @@ export default function SelectPatternScreen() {
                     <MaterialCommunityIcons name="check-circle" size={24} color={COLORS.primary} />
                   )}
                 </View>
-              </Card>
+              </TouchableOpacity>
             ))}
         </View>
 
         {/* Starting Parent */}
-        <Text className="text-sm font-semibold text-gray-700 mb-3">
-          Wer hat die Kinder zuerst?
-        </Text>
-        <View className="flex-row gap-3 mb-8">
+        <Text style={styles.sectionTitle}>Wer hat die Kinder zuerst?</Text>
+        <View style={styles.parentRow}>
           <TouchableOpacity
             onPress={() => setStartingParent('parent_a')}
-            className={`flex-1 py-3 rounded-xl items-center border-2 ${
-              startingParent === 'parent_a' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-            }`}
+            style={[
+              styles.parentButton,
+              startingParent === 'parent_a' && styles.parentButtonSelectedA,
+            ]}
           >
-            <Text className={`font-semibold ${
-              startingParent === 'parent_a' ? 'text-blue-600' : 'text-gray-500'
-            }`}>Elternteil A</Text>
+            <Text
+              style={[
+                styles.parentButtonText,
+                startingParent === 'parent_a' && styles.parentButtonTextSelectedA,
+              ]}
+            >
+              Elternteil A
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setStartingParent('parent_b')}
-            className={`flex-1 py-3 rounded-xl items-center border-2 ${
-              startingParent === 'parent_b' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
-            }`}
+            style={[
+              styles.parentButton,
+              startingParent === 'parent_b' && styles.parentButtonSelectedB,
+            ]}
           >
-            <Text className={`font-semibold ${
-              startingParent === 'parent_b' ? 'text-purple-600' : 'text-gray-500'
-            }`}>Elternteil B</Text>
+            <Text
+              style={[
+                styles.parentButtonText,
+                startingParent === 'parent_b' && styles.parentButtonTextSelectedB,
+              ]}
+            >
+              Elternteil B
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Preview */}
-        <Text className="text-sm font-semibold text-gray-700 mb-3">
-          Vorschau (naechste 14 Tage)
-        </Text>
-        <Card className="mb-4">
-          <View className="flex-row flex-wrap gap-1">
+        <Text style={styles.sectionTitle}>Vorschau (naechste 14 Tage)</Text>
+        <View style={styles.previewCard}>
+          <View style={styles.previewGrid}>
             {preview.map((day, i) => (
               <View
                 key={i}
-                className="items-center py-1.5 rounded-lg"
-                style={{
-                  width: '13%',
-                  backgroundColor: day.parent === 'parent_a'
-                    ? PARENT_COLORS.parent_a + '20'
-                    : PARENT_COLORS.parent_b + '20',
-                }}
+                style={[
+                  styles.previewDay,
+                  {
+                    backgroundColor:
+                      day.parent === 'parent_a'
+                        ? PARENT_COLORS.parent_a + '20'
+                        : PARENT_COLORS.parent_b + '20',
+                  },
+                ]}
               >
-                <Text className="text-[10px] text-gray-500">{formatShortDay(day.date)}</Text>
+                <Text style={styles.previewDayName}>{formatShortDay(day.date)}</Text>
                 <View
-                  className="w-6 h-6 rounded-full items-center justify-center mt-0.5"
-                  style={{
-                    backgroundColor: PARENT_COLORS[day.parent],
-                  }}
+                  style={[
+                    styles.previewBadge,
+                    {
+                      backgroundColor: PARENT_COLORS[day.parent],
+                    },
+                  ]}
                 >
-                  <Text className="text-white text-[10px] font-bold">
+                  <Text style={styles.previewBadgeText}>
                     {day.parent === 'parent_a' ? 'A' : 'B'}
                   </Text>
                 </View>
-                <Text className="text-[9px] text-gray-400 mt-0.5">{formatDayMonth(day.date)}</Text>
+                <Text style={styles.previewDate}>{formatDayMonth(day.date)}</Text>
               </View>
             ))}
           </View>
-        </Card>
+        </View>
 
         {/* Legend */}
-        <View className="flex-row justify-center gap-6 mb-4">
-          <View className="flex-row items-center gap-2">
-            <View className="w-3 h-3 rounded-full" style={{ backgroundColor: PARENT_COLORS.parent_a }} />
-            <Text className="text-xs text-gray-500">Elternteil A</Text>
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_a }]} />
+            <Text style={styles.legendText}>Elternteil A</Text>
           </View>
-          <View className="flex-row items-center gap-2">
-            <View className="w-3 h-3 rounded-full" style={{ backgroundColor: PARENT_COLORS.parent_b }} />
-            <Text className="text-xs text-gray-500">Elternteil B</Text>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_b }]} />
+            <Text style={styles.legendText}>Elternteil B</Text>
           </View>
         </View>
       </ScrollView>
 
-      <View className="px-6 pb-6">
-        <Button
-          title="Fertig"
+      <View style={styles.bottomButton}>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleSave}
-          loading={loading}
-        />
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Fertig</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  scrollContent: {
+    paddingVertical: 32,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  patternList: {
+    gap: 12,
+    marginBottom: 32,
+  },
+  patternCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  patternCardSelected: {
+    borderColor: '#4F46E5',
+    borderWidth: 2,
+  },
+  patternCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  patternCardText: {
+    flex: 1,
+  },
+  patternTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
+  patternDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  parentRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 32,
+  },
+  parentButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+  },
+  parentButtonSelectedA: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  parentButtonSelectedB: {
+    borderColor: '#A855F7',
+    backgroundColor: '#FAF5FF',
+  },
+  parentButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  parentButtonTextSelectedA: {
+    color: '#3B82F6',
+  },
+  parentButtonTextSelectedB: {
+    color: '#A855F7',
+  },
+  previewCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  previewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  previewDay: {
+    width: '13%',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  previewDayName: {
+    fontSize: 10,
+    color: '#6B7280',
+  },
+  previewBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  previewBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  previewDate: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 24,
+    marginBottom: 16,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  bottomButton: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  button: {
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
