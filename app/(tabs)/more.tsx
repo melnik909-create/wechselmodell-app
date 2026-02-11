@@ -1,8 +1,7 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Share, StyleSheet, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/lib/auth';
 import { useChildren } from '@/hooks/useFamily';
 import { COLORS } from '@/lib/constants';
@@ -32,73 +31,64 @@ export default function MoreScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      <ScrollView className="flex-1 px-4 py-4">
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Profile Card */}
-        <Card className="mb-4">
-          <View className="flex-row items-center gap-4">
-            <View className="w-14 h-14 bg-indigo-100 rounded-full items-center justify-center">
-              <Text className="text-xl font-bold text-indigo-600">
+        <View style={styles.card}>
+          <View style={styles.profileRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
                 {profile?.display_name?.charAt(0)?.toUpperCase() ?? '?'}
               </Text>
             </View>
-            <View className="flex-1">
-              <Text className="text-lg font-semibold text-gray-900">
-                {profile?.display_name}
-              </Text>
-              <Text className="text-sm text-gray-500">
-                {family?.name ?? 'Keine Familie'}
-              </Text>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{profile?.display_name}</Text>
+              <Text style={styles.profileFamily}>{family?.name ?? 'Keine Familie'}</Text>
             </View>
           </View>
-        </Card>
+        </View>
 
         {/* Family Code */}
         {family && (
-          <Card className="mb-4" onPress={handleShare}>
-            <View className="flex-row items-center justify-between">
+          <TouchableOpacity style={styles.card} onPress={handleShare} activeOpacity={0.7}>
+            <View style={styles.familyCodeRow}>
               <View>
-                <Text className="text-sm font-semibold text-gray-700">Familiencode</Text>
-                <Text className="text-2xl font-mono font-bold text-indigo-600 tracking-wider">
-                  {family.invite_code}
-                </Text>
+                <Text style={styles.familyCodeLabel}>Familiencode</Text>
+                <Text style={styles.familyCode}>{family.invite_code}</Text>
               </View>
               <MaterialCommunityIcons name="share-variant" size={24} color={COLORS.primary} />
             </View>
-          </Card>
+          </TouchableOpacity>
         )}
 
         {/* Children */}
-        <Text className="text-sm font-semibold text-gray-700 mb-3 mt-2">
-          Kinder
-        </Text>
-        {children?.map(child => (
-          <Card
+        <Text style={styles.sectionTitle}>Kinder</Text>
+        {children?.map((child) => (
+          <TouchableOpacity
             key={child.id}
-            className="mb-2"
+            style={styles.card}
             onPress={() => router.push(`/modal/child-info?id=${child.id}`)}
+            activeOpacity={0.7}
           >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center gap-3">
-                <View className="w-10 h-10 bg-purple-100 rounded-full items-center justify-center">
+            <View style={styles.childRow}>
+              <View style={styles.childLeft}>
+                <View style={styles.childAvatar}>
                   <MaterialCommunityIcons name="account-child" size={22} color="#A855F7" />
                 </View>
                 <View>
-                  <Text className="text-base font-semibold text-gray-900">{child.name}</Text>
+                  <Text style={styles.childName}>{child.name}</Text>
                   {child.date_of_birth && (
-                    <Text className="text-xs text-gray-500">{child.date_of_birth}</Text>
+                    <Text style={styles.childBirthdate}>{child.date_of_birth}</Text>
                   )}
                 </View>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textMuted} />
             </View>
-          </Card>
+          </TouchableOpacity>
         ))}
 
         {/* Settings Items */}
-        <Text className="text-sm font-semibold text-gray-700 mb-3 mt-6">
-          Einstellungen
-        </Text>
+        <Text style={styles.sectionTitle}>Einstellungen</Text>
 
         <SettingsItem
           icon="shield-check"
@@ -135,7 +125,7 @@ function SettingsItem({
   return (
     <TouchableOpacity
       onPress={onPress}
-      className="flex-row items-center gap-3 py-3.5 border-b border-gray-100"
+      style={styles.settingsItem}
       activeOpacity={0.6}
     >
       <MaterialCommunityIcons
@@ -143,10 +133,129 @@ function SettingsItem({
         size={22}
         color={danger ? COLORS.error : COLORS.textSecondary}
       />
-      <Text className={`text-base flex-1 ${danger ? 'text-red-500' : 'text-gray-900'}`}>
+      <Text style={[styles.settingsLabel, danger && styles.settingsLabelDanger]}>
         {label}
       </Text>
       <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4F46E5',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
+  },
+  profileFamily: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  familyCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  familyCodeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  familyCode: {
+    fontSize: 24,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontWeight: 'bold',
+    color: '#4F46E5',
+    letterSpacing: 2,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  childRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  childLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  childAvatar: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#FAF5FF',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  childName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
+  childBirthdate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  settingsLabel: {
+    fontSize: 16,
+    flex: 1,
+    color: '#111',
+  },
+  settingsLabelDanger: {
+    color: '#EF4444',
+  },
+});

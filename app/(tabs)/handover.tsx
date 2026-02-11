@@ -1,15 +1,12 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { useFamilyMembers, useChildren } from '@/hooks/useFamily';
-import { formatFullDate, formatDayMonth } from '@/lib/date-utils';
+import { useFamilyMembers } from '@/hooks/useFamily';
+import { formatDayMonth } from '@/lib/date-utils';
 import { COLORS } from '@/lib/constants';
 import { HANDOVER_CATEGORY_LABELS, type HandoverItemCategory } from '@/types';
 import type { Handover, HandoverItem } from '@/types';
@@ -68,7 +65,7 @@ export default function HandoverScreen() {
   const createHandover = useMutation({
     mutationFn: async () => {
       if (!family || !user) throw new Error('Nicht angemeldet');
-      const otherMember = members?.find(m => m.user_id !== user.id);
+      const otherMember = members?.find((m) => m.user_id !== user.id);
 
       const { data, error } = await supabase
         .from('handovers')
@@ -84,10 +81,20 @@ export default function HandoverScreen() {
       if (error) throw error;
 
       // Create default checklist items
-      const defaultItems: { handover_id: string; category: HandoverItemCategory; description: string; sort_order: number }[] = [
+      const defaultItems: {
+        handover_id: string;
+        category: HandoverItemCategory;
+        description: string;
+        sort_order: number;
+      }[] = [
         { handover_id: data.id, category: 'clothing', description: 'Wechselkleidung', sort_order: 0 },
         { handover_id: data.id, category: 'medication', description: 'Medikamente', sort_order: 1 },
-        { handover_id: data.id, category: 'homework', description: 'Hausaufgaben / Schulsachen', sort_order: 2 },
+        {
+          handover_id: data.id,
+          category: 'homework',
+          description: 'Hausaufgaben / Schulsachen',
+          sort_order: 2,
+        },
         { handover_id: data.id, category: 'toy', description: 'Lieblingsspielzeug', sort_order: 3 },
       ];
       await supabase.from('handover_items').insert(defaultItems);
@@ -101,41 +108,43 @@ export default function HandoverScreen() {
   });
 
   const memberName = (userId: string) => {
-    const member = members?.find(m => m.user_id === userId);
+    const member = members?.find((m) => m.user_id === userId);
     return member?.profile?.display_name ?? 'Unbekannt';
   };
 
   if (selectedHandover && items) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-        <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
-          <TouchableOpacity onPress={() => setSelectedHandover(null)} className="mr-3">
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setSelectedHandover(null)} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <Text className="text-lg font-semibold text-gray-900">Uebergabe-Checkliste</Text>
+          <Text style={styles.headerTitle}>Uebergabe-Checkliste</Text>
         </View>
-        <ScrollView className="flex-1 px-4 py-4">
-          {items.map(item => (
-            <Card key={item.id} className="mb-2">
-              <TouchableOpacity
-                onPress={() => toggleItem.mutate({ itemId: item.id, checked: !item.is_checked })}
-                className="flex-row items-center gap-3"
-              >
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {items.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              onPress={() => toggleItem.mutate({ itemId: item.id, checked: !item.is_checked })}
+              style={styles.checklistItem}
+              activeOpacity={0.7}
+            >
+              <View style={styles.checklistRow}>
                 <MaterialCommunityIcons
                   name={item.is_checked ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
                   size={24}
                   color={item.is_checked ? '#10B981' : COLORS.textMuted}
                 />
-                <View className="flex-1">
-                  <Text className={`text-base ${item.is_checked ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                <View style={styles.checklistText}>
+                  <Text style={[styles.checklistDescription, item.is_checked && styles.checkedText]}>
                     {item.description}
                   </Text>
-                  <Text className="text-xs text-gray-400">
+                  <Text style={styles.checklistCategory}>
                     {HANDOVER_CATEGORY_LABELS[item.category]}
                   </Text>
                 </View>
-              </TouchableOpacity>
-            </Card>
+              </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </SafeAreaView>
@@ -143,48 +152,66 @@ export default function HandoverScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      <ScrollView className="flex-1 px-4 py-4">
-        <Button
-          title="Neue Uebergabe erstellen"
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <TouchableOpacity
+          style={styles.createButton}
           onPress={() => createHandover.mutate()}
-          loading={createHandover.isPending}
-          icon={<MaterialCommunityIcons name="plus" size={20} color="#fff" />}
-        />
+          disabled={createHandover.isPending}
+          activeOpacity={0.7}
+        >
+          {createHandover.isPending ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+              <Text style={styles.createButtonText}>Neue Uebergabe erstellen</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-        <View className="mt-4">
-          {handovers?.map(handover => (
-            <Card
+        <View style={styles.handoverList}>
+          {handovers?.map((handover) => (
+            <TouchableOpacity
               key={handover.id}
-              className="mb-3"
+              style={styles.handoverCard}
               onPress={() => setSelectedHandover(handover.id)}
+              activeOpacity={0.7}
             >
-              <View className="flex-row items-center justify-between">
+              <View style={styles.handoverRow}>
                 <View>
-                  <Text className="text-base font-semibold text-gray-900">
+                  <Text style={styles.handoverDate}>
                     {formatDayMonth(new Date(handover.date + 'T00:00:00'))}
                   </Text>
-                  <Text className="text-sm text-gray-500">
+                  <Text style={styles.handoverParents}>
                     {memberName(handover.from_parent)} → {memberName(handover.to_parent)}
                   </Text>
                 </View>
-                <View className={`px-3 py-1 rounded-full ${
-                  handover.status === 'completed' ? 'bg-green-100' : 'bg-yellow-100'
-                }`}>
-                  <Text className={`text-xs font-medium ${
-                    handover.status === 'completed' ? 'text-green-700' : 'text-yellow-700'
-                  }`}>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    handover.status === 'completed' ? styles.statusCompleted : styles.statusPending,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      handover.status === 'completed'
+                        ? styles.statusTextCompleted
+                        : styles.statusTextPending,
+                    ]}
+                  >
                     {handover.status === 'completed' ? 'Erledigt' : 'Offen'}
                   </Text>
                 </View>
               </View>
-            </Card>
+            </TouchableOpacity>
           ))}
 
           {(!handovers || handovers.length === 0) && !isLoading && (
-            <View className="items-center py-12">
+            <View style={styles.emptyState}>
               <MaterialCommunityIcons name="swap-horizontal" size={48} color={COLORS.textMuted} />
-              <Text className="text-base text-gray-400 mt-2">Noch keine Uebergaben</Text>
+              <Text style={styles.emptyText}>Noch keine Uebergaben</Text>
             </View>
           )}
         </View>
@@ -192,3 +219,132 @@ export default function HandoverScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  backButton: {
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
+  },
+  checklistItem: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  checklistText: {
+    flex: 1,
+  },
+  checklistDescription: {
+    fontSize: 16,
+    color: '#111',
+  },
+  checkedText: {
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+  },
+  checklistCategory: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4F46E5',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  handoverList: {
+    marginTop: 0,
+  },
+  handoverCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  handoverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  handoverDate: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
+  handoverParents: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusCompleted: {
+    backgroundColor: '#D1FAE5',
+  },
+  statusPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  statusTextCompleted: {
+    color: '#059669',
+  },
+  statusTextPending: {
+    color: '#D97706',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    marginTop: 8,
+  },
+});
