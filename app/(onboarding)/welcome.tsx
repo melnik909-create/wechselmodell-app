@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Willkommen bei Wechselmodell</Text>
+      <Text style={styles.title}>Willkommen bei WechselPlaner</Text>
       <Text style={styles.subtitle}>
         Organisiert gemeinsam den Alltag eurer Kinder
       </Text>

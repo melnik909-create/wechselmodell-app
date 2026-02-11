@@ -71,7 +71,7 @@ export default function CreateFamilyScreen() {
   async function handleShare() {
     try {
       await Share.share({
-        message: `Tritt unserer Familie in der Wechselmodell-App bei! Dein Einladungscode: ${inviteCode}`,
+        message: `Tritt unserer Familie im WechselPlaner bei! Dein Einladungscode: ${inviteCode}`,
       });
     } catch {}
   }

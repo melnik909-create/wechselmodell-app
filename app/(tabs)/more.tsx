@@ -14,7 +14,7 @@ export default function MoreScreen() {
     if (!family) return;
     try {
       await Share.share({
-        message: `Tritt unserer Familie in der Wechselmodell-App bei! Code: ${family.invite_code}`,
+        message: `Tritt unserer Familie im WechselPlaner bei! Code: ${family.invite_code}`,
       });
     } catch {}
   }

@@ -30,7 +30,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Wechselmodell</Text>
+        <Text style={styles.title}>WechselPlaner</Text>
         <Text style={styles.subtitle}>Gemeinsam fuer die Kinder</Text>
       </View>
 

@@ -120,7 +120,7 @@ export default function HomeScreen() {
               <MaterialCommunityIcons name="calendar-question" size={40} color={COLORS.textMuted} />
               <Text style={styles.noPatternTitle}>Noch kein Betreuungsmodell</Text>
               <Text style={styles.noPatternText}>
-                Richte zuerst euer Wechselmodell ein.
+                Richte zuerst euer Betreuungsmodell ein.
               </Text>
             </View>
           </View>

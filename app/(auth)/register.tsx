@@ -65,7 +65,7 @@ export default function RegisterScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Konto erstellen</Text>
-            <Text style={styles.subtitle}>Starte jetzt mit Wechselmodell</Text>
+            <Text style={styles.subtitle}>Starte jetzt mit WechselPlaner</Text>
           </View>
 
           {/* Form */}

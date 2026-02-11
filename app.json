@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Wechselmodell",
-    "slug": "wechselmodell-app",
+    "name": "WechselPlaner",
+    "slug": "wechselplaner-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "wechselmodell",
+    "scheme": "wechselplaner",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wechselmodell.app"
+      "bundleIdentifier": "com.wechselplaner.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +23,7 @@
         "backgroundColor": "#4F46E5"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.wechselmodell.app"
+      "package": "com.wechselplaner.app"
     },
     "web": {
       "favicon": "./assets/favicon.png",
