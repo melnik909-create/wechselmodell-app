@@ -1,17 +1,37 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-// AsyncStorage adapter for Supabase auth (handles large session data)
-const AsyncStorageAdapter = {
+// SecureStore adapter for Supabase auth (more secure than AsyncStorage)
+// Stores tokens in iOS Keychain / Android Keystore
+// Falls back to AsyncStorage if value exceeds 2KB limit
+const SecureStoreAdapter = {
   getItem: async (key: string) => {
-    return await AsyncStorage.getItem(key);
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (error) {
+      console.error('[SecureStore] getItem error:', error);
+      return null;
+    }
   },
   setItem: async (key: string, value: string) => {
-    await AsyncStorage.setItem(key, value);
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch (error) {
+      console.error('[SecureStore] setItem error (falling back to AsyncStorage):', error);
+      // Fallback to AsyncStorage if value too large (>2KB limit)
+      await AsyncStorage.setItem(key, value);
+    }
   },
   removeItem: async (key: string) => {
-    await AsyncStorage.removeItem(key);
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (error) {
+      console.error('[SecureStore] removeItem error:', error);
+      // Also try AsyncStorage in case it was stored there
+      await AsyncStorage.removeItem(key);
+    }
   },
 };
 
@@ -22,7 +42,7 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_ANON_
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorageAdapter,
+    storage: SecureStoreAdapter, // Changed from AsyncStorageAdapter for better security
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

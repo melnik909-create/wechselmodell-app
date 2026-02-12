@@ -6,8 +6,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useUpdateFamily } from '@/hooks/useFamily';
 import { COLORS } from '@/lib/constants';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function EditParentLabelsScreen() {
+  const { contentMaxWidth } = useResponsive();
   const { family } = useAuth();
   const updateFamily = useUpdateFamily();
 
@@ -56,6 +58,7 @@ export default function EditParentLabelsScreen() {
 
         {/* Content */}
         <View style={styles.content}>
+          <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
           <View style={styles.infoBox}>
             <MaterialCommunityIcons name="information" size={20} color={COLORS.primary} />
             <Text style={styles.infoText}>
@@ -89,6 +92,7 @@ export default function EditParentLabelsScreen() {
             <Text style={styles.hint}>
               Leer lassen, um den Profilnamen zu verwenden
             </Text>
+          </View>
           </View>
         </View>
 

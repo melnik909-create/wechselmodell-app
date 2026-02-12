@@ -1,5 +1,5 @@
 export type Parent = 'parent_a' | 'parent_b';
-export type PatternType = '7_7' | '2_2_5_5' | '2_2_3' | '14_14' | 'custom';
+export type PatternType = '3_3' | '5_5' | '7_7' | '14_14' | 'custom';
 
 export type ExceptionReason = 'vacation' | 'sick' | 'swap' | 'holiday' | 'other';
 export type ExceptionStatus = 'proposed' | 'accepted' | 'rejected';
@@ -34,12 +34,23 @@ export type EventCategory =
   | 'vacation'
   | 'other';
 
+export type DocumentType =
+  | 'passport'
+  | 'health_card'
+  | 'birth_certificate'
+  | 'school_reports'
+  | 'vaccination_card'
+  | 'other';
+
+export type DocumentHolder = 'parent_a' | 'parent_b' | 'other' | 'unknown';
+
 export type FamilyRole = 'parent_a' | 'parent_b';
 
 export interface Profile {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  push_token: string | null;
   created_at: string;
 }
 
@@ -132,6 +143,10 @@ export interface HandoverItem {
   category: HandoverItemCategory;
   description: string;
   is_checked: boolean;
+  checked_an: boolean; // Abgegeben (handed over)
+  checked_ab: boolean; // Zurückgegeben (returned)
+  is_custom: boolean; // Custom user-created item
+  item_name: string | null; // Name for custom items
   photo_url: string | null;
   child_id: string | null;
   sort_order: number;
@@ -150,6 +165,7 @@ export interface Expense {
   receipt_url: string | null;
   date: string;
   status: 'pending' | 'approved' | 'rejected';
+  is_memo: boolean; // 50/50 expenses as memo only (not calculated in balance)
 }
 
 export interface Settlement {
@@ -173,6 +189,36 @@ export interface Event {
   category: EventCategory;
   location: string | null;
   created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Contact {
+  id: string;
+  family_id: string;
+  child_id: string | null;
+  name: string;
+  relationship: string | null;
+  parent_1_name: string | null;
+  parent_2_name: string | null;
+  parents_together: boolean;
+  address: string | null;
+  phone: string | null;
+  mobile: string | null;
+  email: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Document {
+  id: string;
+  family_id: string;
+  child_id: string | null;
+  document_type: DocumentType;
+  held_by: DocumentHolder;
+  custom_name: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -217,9 +263,9 @@ export const EXCEPTION_REASON_LABELS: Record<ExceptionReason, string> = {
 };
 
 export const PATTERN_LABELS: Record<PatternType, string> = {
+  '3_3': '3/3 (3 Tage/3 Tage)',
+  '5_5': '5/5 (5 Tage/5 Tage)',
   '7_7': '7/7 (Woche/Woche)',
-  '2_2_5_5': '2/2/5/5',
-  '2_2_3': '2/2/3',
   '14_14': '14/14 (2 Wochen/2 Wochen)',
   custom: 'Benutzerdefiniert',
 };
@@ -233,6 +279,22 @@ export const EVENT_CATEGORY_LABELS: Record<EventCategory, string> = {
   birthday: 'Geburtstag',
   vacation: 'Urlaub',
   other: 'Sonstiges',
+};
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  passport: 'Reisepass',
+  health_card: 'Krankenkarte',
+  birth_certificate: 'Geburtsurkunde',
+  school_reports: 'Zeugnisse',
+  vaccination_card: 'Impfpass',
+  other: 'Sonstiges',
+};
+
+export const DOCUMENT_HOLDER_LABELS: Record<DocumentHolder, string> = {
+  parent_a: 'Elternteil A',
+  parent_b: 'Elternteil B',
+  other: 'Anderer Ort',
+  unknown: 'Unbekannt',
 };
 
 // SCHOOL TASKS

@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const GUIDE_SECTIONS = [
   {
@@ -46,9 +47,20 @@ const GUIDE_SECTIONS = [
     icon: 'calendar-sync',
     content: `Lege fest, an welchem Wochentag die Übergaben stattfinden:\n\n1. Gehe zu "Mehr" > "Übergabetag konfigurieren"\n2. Wähle den Wochentag (z.B. Freitag)\n\nDer Betreuungsplan passt sich automatisch an.`,
   },
+  {
+    title: 'Datenschutz & Sicherheit',
+    icon: 'shield-lock',
+    content: `Deine sensiblen Daten sind bei uns sicher:\n\n• AES-256-Verschlüsselung für Reisepassnummern, Versicherungsnummern, Gesundheitsdaten und Kontaktinformationen\n• Verschlüsselungsschlüssel bleibt nur auf deinem Gerät\n• Selbst bei einem Datenbankzugriff sind deine Daten unleserlich\n• Automatische Verschlüsselung im Hintergrund\n\nDeine Privatsphäre hat oberste Priorität.`,
+  },
+  {
+    title: 'Datenschutz & DSGVO',
+    icon: 'shield-check',
+    content: `Wir nehmen Datenschutz ernst:\n\n• Vollständig konform mit der DSGVO\n• Es wird kein Handel mit deinen Daten getrieben\n• Deine Daten gehören dir und werden niemals verkauft\n• Sichere Cloud-Speicherung in der EU\n• Transparenz und Kontrolle über deine Daten`,
+  },
 ];
 
 export default function GuideScreen() {
+  const { contentMaxWidth } = useResponsive();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   function toggleSection(index: number) {
@@ -67,9 +79,10 @@ export default function GuideScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         <View style={styles.intro}>
           <MaterialCommunityIcons name="help-circle" size={48} color={COLORS.primary} />
-          <Text style={styles.introTitle}>Willkommen bei WechselPlaner</Text>
+          <Text style={styles.introTitle}>Willkommen bei Wechselmodell-Planer</Text>
           <Text style={styles.introText}>
             Hier findest du Hilfe zu allen Funktionen der App. Tippe auf einen Bereich, um mehr zu erfahren.
           </Text>
@@ -111,6 +124,7 @@ export default function GuideScreen() {
           <Text style={styles.footerText}>
             Brauchst du weitere Hilfe? Kontaktiere uns über die Einstellungen.
           </Text>
+        </View>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -8,13 +8,17 @@ import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/lib/constants';
 import type { Child } from '@/types';
 import { useAuth } from '@/lib/auth';
+import { useEntitlements } from '@/hooks/useEntitlements';
 import { uploadImage } from '@/lib/image-upload';
 import ImagePickerButton from '@/components/ImagePickerButton';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function EditChildScreen() {
+  const { contentMaxWidth } = useResponsive();
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();
   const { family } = useAuth();
+  const { data: entitlements } = useEntitlements();
 
   const { data: child, isLoading } = useQuery({
     queryKey: ['child', id],
@@ -66,6 +70,41 @@ export default function EditChildScreen() {
     }
   }, [child]);
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error('Keine Kind-ID');
+      const { error } = await supabase
+        .from('children')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['children'] });
+      Alert.alert('Geloescht', 'Kind wurde entfernt.', [
+        { text: 'OK', onPress: () => { router.back(); router.back(); } }
+      ]);
+    },
+    onError: (error: any) => {
+      Alert.alert('Fehler', error.message);
+    },
+  });
+
+  function handleDelete() {
+    Alert.alert(
+      'Kind loeschen',
+      `Moechtest du "${child?.name}" wirklich loeschen? Alle zugehoerigen Daten werden unwiderruflich entfernt.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Loeschen',
+          style: 'destructive',
+          onPress: () => deleteMutation.mutate(),
+        },
+      ]
+    );
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!id || !family) throw new Error('Keine Kind-ID oder Familie');
@@ -73,7 +112,25 @@ export default function EditChildScreen() {
       // Upload avatar if new image selected
       let finalAvatarUrl = child?.avatar_url || null;
       if (avatarUri) {
-        finalAvatarUrl = await uploadImage(avatarUri, 'avatars', family.id, `child-${id}`);
+        // Check Cloud Plus entitlement before upload
+        if (!entitlements?.canUpload) {
+          router.push('/modal/cloud-plus');
+          throw new Error('Cloud Plus erforderlich für Foto-Uploads');
+        }
+
+        try {
+          // Upload via Edge Function (returns PATH, not URL)
+          finalAvatarUrl = await uploadImage(avatarUri, 'avatar', family.id);
+        } catch (uploadError: any) {
+          // Handle Cloud Plus requirement error
+          if (uploadError.message?.includes('Cloud Plus') ||
+              uploadError.message?.includes('402') ||
+              uploadError.message?.includes('Payment Required')) {
+            router.push('/modal/cloud-plus');
+            throw new Error('Cloud Plus erforderlich für Foto-Uploads');
+          }
+          throw uploadError;
+        }
       }
 
       const { error } = await supabase
@@ -127,12 +184,13 @@ export default function EditChildScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
             <Text style={styles.label}>Profilbild</Text>
             <ImagePickerButton
               imageUri={avatarUri}
-              onImagePicked={setAvatarUri}
+              onImageSelected={(uri) => setAvatarUri(uri)}
               onImageRemoved={() => setAvatarUri(null)}
             />
           </View>
@@ -246,6 +304,7 @@ export default function EditChildScreen() {
             multiline
             numberOfLines={4}
           />
+          </View>
         </ScrollView>
 
         <View style={styles.buttonContainer}>
@@ -256,6 +315,16 @@ export default function EditChildScreen() {
           >
             <Text style={styles.buttonText}>
               {saveMutation.isPending ? 'Speichern...' : 'Speichern'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            disabled={deleteMutation.isPending}
+          >
+            <MaterialCommunityIcons name="delete" size={18} color="#EF4444" />
+            <Text style={styles.deleteButtonText}>
+              {deleteMutation.isPending ? 'Wird geloescht...' : 'Kind loeschen'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -393,6 +462,23 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+  },
+  deleteButtonText: {
+    color: '#EF4444',
+    fontSize: 15,
     fontWeight: '600',
   },
 });

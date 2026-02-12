@@ -5,15 +5,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { useCustodyPattern } from '@/hooks/useFamily';
+import { useCustodyPattern, useFamilyMembers } from '@/hooks/useFamily';
 import { getCustodyForDate } from '@/lib/custody-engine';
+import { notifyExceptionProposed } from '@/lib/notifications';
+import { formatFullDate } from '@/lib/date-utils';
 import { EXCEPTION_REASON_LABELS, type ExceptionReason, type Parent } from '@/types';
+import DateInput from '@/components/DateInput';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const REASONS: ExceptionReason[] = ['vacation', 'sick', 'swap', 'holiday', 'other'];
 
 export default function AddExceptionModal() {
-  const { family, user } = useAuth();
+  const { contentMaxWidth } = useResponsive();
+  const { family, user, profile } = useAuth();
   const { data: pattern } = useCustodyPattern();
+  const { data: members } = useFamilyMembers();
   const queryClient = useQueryClient();
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -42,6 +48,17 @@ export default function AddExceptionModal() {
         proposed_by: user!.id,
       });
       if (error) throw error;
+
+      // Send notification to other parent
+      const otherParent = members?.find(m => m.user_id !== user!.id);
+      if (otherParent && profile) {
+        const formattedDate = formatFullDate(new Date(date + 'T00:00:00'));
+        notifyExceptionProposed(
+          otherParent.user_id,
+          profile.display_name,
+          formattedDate
+        ).catch((error) => console.error('Failed to send notification:', error));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custody_exceptions'] });
@@ -65,13 +82,16 @@ export default function AddExceptionModal() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
           {/* Date */}
-          <Input
-            label="Datum (YYYY-MM-DD)"
-            placeholder="2026-02-15"
-            value={date}
-            onChangeText={setDate}
-          />
+          <View>
+            <Text style={styles.label}>Datum (dd.MM.yyyy)</Text>
+            <DateInput
+              value={date}
+              onChangeText={setDate}
+              placeholder="dd.MM.yyyy"
+            />
+          </View>
 
           {normalParent && (
             <View style={styles.infoBox}>
@@ -119,6 +139,7 @@ export default function AddExceptionModal() {
             multiline
             numberOfLines={3}
           />
+          </View>
         </ScrollView>
 
         <View style={styles.buttonContainer}>

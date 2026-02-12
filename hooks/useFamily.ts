@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import { notifyExceptionStatusChanged } from '@/lib/notifications';
+import { formatFullDate } from '@/lib/date-utils';
+import { EncryptionService } from '@/lib/encryption';
+import { ENCRYPTED_FIELDS } from '@/lib/encryption-config';
 import type { Child, CustodyPattern, CustodyException, Profile, FamilyMember, Event, EventAttendance, AttendanceStatus } from '@/types';
 
 export function useChildren() {
@@ -15,7 +19,30 @@ export function useChildren() {
         .eq('family_id', family.id)
         .order('name');
       if (error) throw error;
-      return data ?? [];
+      if (!data) return [];
+
+      // Decrypt sensitive fields client-side
+      const decrypted = await Promise.all(
+        data.map(async (child: any) => {
+          const decryptedChild: any = { ...child };
+
+          // Decrypt each sensitive field
+          for (const field of ENCRYPTED_FIELDS.children) {
+            const encField = `${field}_enc`;
+            if (child[encField]) {
+              // Read from encrypted column
+              decryptedChild[field] = await EncryptionService.decrypt(child[encField]);
+            } else if (child[field]) {
+              // Fallback: old data not yet migrated
+              decryptedChild[field] = child[field];
+            }
+          }
+
+          return decryptedChild as Child;
+        })
+      );
+
+      return decrypted;
     },
     enabled: !!family,
   });
@@ -88,6 +115,14 @@ export function useAcceptException() {
 
   return useMutation({
     mutationFn: async (exceptionId: string) => {
+      // Get exception details before updating
+      const { data: exception } = await supabase
+        .from('custody_exceptions')
+        .select('*, proposed_by')
+        .eq('id', exceptionId)
+        .single();
+
+      // Update exception status
       const { error } = await supabase
         .from('custody_exceptions')
         .update({
@@ -96,6 +131,14 @@ export function useAcceptException() {
         })
         .eq('id', exceptionId);
       if (error) throw error;
+
+      // Send notification to proposer
+      if (exception) {
+        const formattedDate = formatFullDate(new Date(exception.date + 'T00:00:00'));
+        notifyExceptionStatusChanged(exception.proposed_by, 'accepted', formattedDate).catch(
+          (error) => console.error('Failed to send notification:', error)
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custody_exceptions', family?.id] });
@@ -109,6 +152,14 @@ export function useRejectException() {
 
   return useMutation({
     mutationFn: async (exceptionId: string) => {
+      // Get exception details before updating
+      const { data: exception } = await supabase
+        .from('custody_exceptions')
+        .select('*, proposed_by')
+        .eq('id', exceptionId)
+        .single();
+
+      // Update exception status
       const { error } = await supabase
         .from('custody_exceptions')
         .update({
@@ -117,6 +168,14 @@ export function useRejectException() {
         })
         .eq('id', exceptionId);
       if (error) throw error;
+
+      // Send notification to proposer
+      if (exception) {
+        const formattedDate = formatFullDate(new Date(exception.date + 'T00:00:00'));
+        notifyExceptionStatusChanged(exception.proposed_by, 'rejected', formattedDate).catch(
+          (error) => console.error('Failed to send notification:', error)
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custody_exceptions', family?.id] });

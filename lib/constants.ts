@@ -20,6 +20,12 @@ export const PARENT_COLORS = {
   parent_b: '#A855F7',
 } as const;
 
+export const EXCEPTION_COLORS = {
+  proposed: '#FBBF24',  // GELB (Yellow)
+  accepted: '#10B981',  // GRÜN (Green)
+  rejected: '#EF4444',  // ROT (Red)
+} as const;
+
 export function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/O/0/1 for readability
   let code = '';

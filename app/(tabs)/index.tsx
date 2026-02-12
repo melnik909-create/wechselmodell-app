@@ -7,10 +7,12 @@ import { useCustodyPattern, useCustodyExceptions, useFamilyMembers } from '@/hoo
 import { getCustodyForDate, buildExceptionMap } from '@/lib/custody-engine';
 import { getNext7Days, formatShortDay, formatDayMonth, formatFullDate } from '@/lib/date-utils';
 import { PARENT_COLORS, COLORS } from '@/lib/constants';
+import { useResponsive } from '@/hooks/useResponsive';
 import type { Parent } from '@/types';
 
 export default function HomeScreen() {
-  const { profile } = useAuth();
+  const { profile, family } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const { data: pattern } = useCustodyPattern();
   const { data: exceptions } = useCustodyExceptions();
   const { data: members } = useFamilyMembers();
@@ -37,6 +39,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Greeting */}
         <Text style={styles.greeting}>Hallo, {profile?.display_name ?? 'dort'} 👋</Text>
 
@@ -118,6 +121,12 @@ export default function HomeScreen() {
             onPress={() => router.push('/modal/events-overview')}
           />
           <QuickAction
+            icon="account-group"
+            label="Kontakte"
+            color="#14B8A6"
+            onPress={() => router.push('/modal/contacts')}
+          />
+          <QuickAction
             icon="school"
             label="Schule"
             color="#EC4899"
@@ -137,6 +146,7 @@ export default function HomeScreen() {
             </View>
           </View>
         )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -269,6 +279,7 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 24,
   },

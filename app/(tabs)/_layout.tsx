@@ -42,10 +42,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="handover"
         options={{
-          title: 'Übergabe',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="swap-horizontal" size={size} color={color} />
-          ),
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="handover-old-backup"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -64,6 +67,12 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="dots-horizontal" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="more/upgrade"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

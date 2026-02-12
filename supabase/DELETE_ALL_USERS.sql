@@ -1,6 +1,7 @@
 -- ⚠️ Löscht ALLE Benutzer und Daten! Nur für Entwicklung!
 
 -- Schritt 1: RLS temporär deaktivieren (wichtig!)
+ALTER TABLE events DISABLE ROW LEVEL SECURITY;
 ALTER TABLE handover_items DISABLE ROW LEVEL SECURITY;
 ALTER TABLE handovers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
@@ -14,6 +15,7 @@ ALTER TABLE families DISABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
 
 -- Schritt 2: Alle Daten löschen (in richtiger Reihenfolge)
+TRUNCATE TABLE events CASCADE;
 TRUNCATE TABLE handover_items CASCADE;
 TRUNCATE TABLE handovers CASCADE;
 TRUNCATE TABLE expenses CASCADE;
@@ -34,6 +36,7 @@ DELETE FROM auth.users;
 -- Authentication → Users → Alle auswählen → Delete
 
 -- Schritt 4: RLS wieder aktivieren
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE handover_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE handovers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;

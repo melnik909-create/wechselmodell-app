@@ -5,16 +5,18 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useChildren } from '@/hooks/useFamily';
 import { COLORS } from '@/lib/constants';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function MoreScreen() {
   const { profile, family, signOut } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const { data: children } = useChildren();
 
   async function handleShare() {
     if (!family) return;
     try {
       await Share.share({
-        message: `Tritt unserer Familie im WechselPlaner bei! Code: ${family.invite_code}`,
+        message: `Tritt unserer Familie im Wechselmodell-Planer bei! Code: ${family.invite_code}`,
       });
     } catch {}
   }
@@ -33,6 +35,7 @@ export default function MoreScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Profile Card */}
         <View style={styles.card}>
           <View style={styles.profileRow}>
@@ -101,6 +104,16 @@ export default function MoreScreen() {
           onPress={() => router.push('/modal/config-handover-day')}
         />
         <SettingsItem
+          icon="star"
+          label="Vollversion kaufen"
+          onPress={() => router.push('/modal/paywall')}
+        />
+        <SettingsItem
+          icon="file-document-multiple"
+          label="Wichtige Dokumente"
+          onPress={() => router.push('/modal/documents')}
+        />
+        <SettingsItem
           icon="account-edit"
           label="Elternnamen anpassen"
           onPress={() => router.push('/modal/edit-parent-labels')}
@@ -126,6 +139,7 @@ export default function MoreScreen() {
           onPress={handleSignOut}
           danger
         />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

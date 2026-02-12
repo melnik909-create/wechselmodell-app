@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, Pressable } from 'react-native';
+import { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
-import { useExpenses, calculateBalance } from '@/hooks/useExpenses';
+import { useExpenses, calculateBalance, useSettleExpenses } from '@/hooks/useExpenses';
 import { useFamilyMembers } from '@/hooks/useFamily';
-import { EXPENSE_CATEGORY_LABELS } from '@/types';
+import { useSettlementCycle } from '@/hooks/useEntitlements';
+import { EXPENSE_CATEGORY_LABELS, type Expense } from '@/types';
 import { formatDayMonth } from '@/lib/date-utils';
 import { COLORS } from '@/lib/constants';
 import { format } from 'date-fns';
-import { getSignedUrl } from '@/lib/image-upload';
+import { getReceiptImageUrl } from '@/lib/image-upload';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const CATEGORY_ICONS: Record<string, string> = {
   clothing: 'tshirt-crew',
@@ -25,50 +28,164 @@ const CATEGORY_ICONS: Record<string, string> = {
   other: 'dots-horizontal',
 };
 
+// Hook for fetching signed receipt URL with caching
+function useReceiptSignedUrl(familyId: string | undefined, expenseId: string, path: string | null) {
+  return useQuery({
+    queryKey: ['receiptSignedUrl', familyId, expenseId, path],
+    queryFn: async () => {
+      if (!path || !familyId) return null;
+
+      // Legacy support: if path is old URL format, use directly
+      if (path.startsWith('http')) {
+        console.warn('Legacy receipt URL detected:', path);
+        return path;
+      }
+
+      // Fetch signed download URL via Edge Function
+      try {
+        const signedUrl = await getReceiptImageUrl(familyId, path);
+        return signedUrl;
+      } catch (error: any) {
+        if (error.message?.includes('Cloud Plus') ||
+            error.message?.includes('402') ||
+            error.message?.includes('Payment Required')) {
+          console.log('Cloud Plus required to view receipt');
+          return null;
+        }
+        throw error;
+      }
+    },
+    enabled: !!path && !!familyId,
+    staleTime: 9 * 60 * 1000, // 9 minutes (before 10-minute expiry)
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// Expense card component with receipt support
+function ExpenseCard({
+  expense,
+  memberName,
+  familyId,
+  onReceiptPress,
+}: {
+  expense: Expense;
+  memberName: (userId: string) => string;
+  familyId: string | undefined;
+  onReceiptPress: (url: string) => void;
+}) {
+  const { data: receiptUrl } = useReceiptSignedUrl(familyId, expense.id, expense.receipt_url);
+
+  return (
+    <View style={styles.expenseCard}>
+      <View style={styles.expenseRow}>
+        <View style={styles.categoryIcon}>
+          <MaterialCommunityIcons
+            name={(CATEGORY_ICONS[expense.category] ?? 'dots-horizontal') as any}
+            size={22}
+            color={COLORS.primary}
+          />
+        </View>
+        <View style={styles.expenseInfo}>
+          <View style={styles.descriptionRow}>
+            <Text style={styles.expenseDescription}>{expense.description}</Text>
+            {expense.is_memo && expense.split_type === '50_50' && (
+              <View style={styles.memoBadge}>
+                <MaterialCommunityIcons name="note-text" size={10} color="#F59E0B" />
+                <Text style={styles.memoBadgeText}>Memo</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.expenseDetails}>
+            {EXPENSE_CATEGORY_LABELS[expense.category]} ·{' '}
+            {formatDayMonth(new Date(expense.date + 'T00:00:00'))}
+          </Text>
+        </View>
+        <View style={styles.expenseAmount}>
+          <Text style={styles.amountText}>{Number(expense.amount).toFixed(2)} €</Text>
+          <Text style={styles.paidByText}>{memberName(expense.paid_by)}</Text>
+        </View>
+      </View>
+      {receiptUrl && (
+        <TouchableOpacity
+          style={styles.receiptThumbnailContainer}
+          onPress={() => onReceiptPress(receiptUrl)}
+          activeOpacity={0.7}
+        >
+          <Image
+            source={{ uri: receiptUrl }}
+            style={styles.receiptThumbnail}
+            resizeMode="cover"
+          />
+          <View style={styles.receiptBadge}>
+            <MaterialCommunityIcons name="receipt" size={12} color="#fff" />
+            <Text style={styles.receiptBadgeText}>Beleg</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 export default function ExpensesScreen() {
-  const { familyMember } = useAuth();
+  const { familyMember, family } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const { data: members } = useFamilyMembers();
   const [selectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const { data: expenses, isLoading } = useExpenses(selectedMonth);
-  const [receiptUrls, setReceiptUrls] = useState<Record<string, string>>({});
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+  const settleExpensesMutation = useSettleExpenses();
+  const { data: settlementCycle } = useSettlementCycle();
 
   const parentAMember = members?.find((m) => m.role === 'parent_a');
   const balance =
     expenses && parentAMember ? calculateBalance(expenses, parentAMember.user_id) : null;
-
-  // Load signed URLs for receipt images
-  useEffect(() => {
-    if (expenses) {
-      const loadUrls = async () => {
-        const urls: Record<string, string> = {};
-        for (const expense of expenses) {
-          if (expense.receipt_url) {
-            try {
-              const signedUrl = await getSignedUrl('receipts', expense.receipt_url);
-              urls[expense.id] = signedUrl;
-            } catch (error) {
-              console.error('Failed to load receipt URL:', error);
-            }
-          }
-        }
-        setReceiptUrls(urls);
-      };
-      loadUrls();
-    }
-  }, [expenses]);
 
   const memberName = (userId: string) => {
     const member = members?.find((m) => m.user_id === userId);
     return member?.profile?.display_name ?? 'Unbekannt';
   };
 
+  const handleSettleExpenses = () => {
+    Alert.alert(
+      'Ihr seid Quitt!',
+      'Alle bisherigen Kauf-Notizen werden gelöscht. Käufe werden bei beiden Elternteilen neu gezählt. Der andere Elternteil wird benachrichtigt.\n\nMöchtest du fortfahren?',
+      [
+        {
+          text: 'Abbrechen',
+          style: 'cancel',
+        },
+        {
+          text: 'Quitt',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await settleExpensesMutation.mutateAsync();
+              Alert.alert(
+                'Erfolgreich!',
+                'Alle Ausgaben wurden gelöscht. Ihr seid Quitt!'
+              );
+            } catch (error: any) {
+              Alert.alert(
+                'Fehler',
+                error.message || 'Die Ausgaben konnten nicht gelöscht werden.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const isParentA = familyMember?.role === 'parent_a';
   const myOwes = balance ? (isParentA ? balance.parentAOwes : balance.parentBOwes) : 0;
+
+  // Check if mandatory settlement is due (2 months)
+  const isSettlementDue = settlementCycle?.isSettlementDue ?? false;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Balance Card */}
         {balance && (
           <View style={styles.balanceCard}>
@@ -108,58 +225,83 @@ export default function ExpensesScreen() {
           </View>
         )}
 
-        {/* Add Expense Button */}
+        {/* Mandatory Settlement Banner - Show when 2 months passed */}
+        {isSettlementDue && (
+          <View style={styles.mandatorySettlementCard}>
+            <View style={styles.mandatorySettlementHeader}>
+              <MaterialCommunityIcons name="alert-circle" size={28} color="#EF4444" />
+              <Text style={styles.mandatorySettlementTitle}>Pflicht-Abrechnung fällig!</Text>
+            </View>
+            <Text style={styles.mandatorySettlementText}>
+              2 Monate sind vorbei. Bitte jetzt abrechnen, um weiter Ausgaben zu erfassen.
+            </Text>
+            <TouchableOpacity
+              style={styles.mandatorySettlementButton}
+              onPress={handleSettleExpenses}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.mandatorySettlementButtonText}>Jetzt abrechnen (Quitt)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.mandatorySettlementHelpButton}
+              onPress={() =>
+                Alert.alert(
+                  'Warum?',
+                  'Um die Datenmenge gering zu halten und Speicherkosten zu minimieren, wird alle 2 Monate eine Abrechnung fällig. Belege werden dann gelöscht und ihr könnt neu starten.'
+                )
+              }
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="help-circle" size={16} color="#6B7280" />
+              <Text style={styles.mandatorySettlementHelpText}>Warum?</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Quitt Button - Only show if there are expenses */}
+        {expenses && expenses.length > 0 && (
+          <TouchableOpacity
+            style={styles.quittButton}
+            onPress={handleSettleExpenses}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="handshake" size={20} color="#10B981" />
+            <Text style={styles.quittButtonText}>Quitt - Alle Ausgaben löschen</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Add Expense Button - Disabled wenn Settlement fällig */}
         <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/modal/add-expense')}
+          style={[styles.addButton, isSettlementDue && styles.addButtonDisabled]}
+          onPress={() => {
+            if (isSettlementDue) {
+              Alert.alert(
+                'Abrechnung fällig',
+                'Bitte erst abrechnen, bevor neue Ausgaben erfasst werden können.'
+              );
+              return;
+            }
+            router.push('/modal/add-expense');
+          }}
           activeOpacity={0.7}
+          disabled={isSettlementDue}
         >
-          <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-          <Text style={styles.addButtonText}>Ausgabe hinzufuegen</Text>
+          <MaterialCommunityIcons name="plus" size={20} color={isSettlementDue ? '#9CA3AF' : '#fff'} />
+          <Text style={[styles.addButtonText, isSettlementDue && styles.addButtonTextDisabled]}>
+            Ausgabe hinzufuegen
+          </Text>
         </TouchableOpacity>
 
         {/* Expense List */}
         <View style={styles.expenseList}>
           {expenses?.map((expense) => (
-            <View key={expense.id} style={styles.expenseCard}>
-              <View style={styles.expenseRow}>
-                <View style={styles.categoryIcon}>
-                  <MaterialCommunityIcons
-                    name={(CATEGORY_ICONS[expense.category] ?? 'dots-horizontal') as any}
-                    size={22}
-                    color={COLORS.primary}
-                  />
-                </View>
-                <View style={styles.expenseInfo}>
-                  <Text style={styles.expenseDescription}>{expense.description}</Text>
-                  <Text style={styles.expenseDetails}>
-                    {EXPENSE_CATEGORY_LABELS[expense.category]} ·{' '}
-                    {formatDayMonth(new Date(expense.date + 'T00:00:00'))}
-                  </Text>
-                </View>
-                <View style={styles.expenseAmount}>
-                  <Text style={styles.amountText}>{Number(expense.amount).toFixed(2)} €</Text>
-                  <Text style={styles.paidByText}>{memberName(expense.paid_by)}</Text>
-                </View>
-              </View>
-              {receiptUrls[expense.id] && (
-                <TouchableOpacity
-                  style={styles.receiptThumbnailContainer}
-                  onPress={() => setSelectedReceipt(receiptUrls[expense.id])}
-                  activeOpacity={0.7}
-                >
-                  <Image
-                    source={{ uri: receiptUrls[expense.id] }}
-                    style={styles.receiptThumbnail}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.receiptBadge}>
-                    <MaterialCommunityIcons name="receipt" size={12} color="#fff" />
-                    <Text style={styles.receiptBadgeText}>Beleg</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-            </View>
+            <ExpenseCard
+              key={expense.id}
+              expense={expense}
+              memberName={memberName}
+              familyId={family?.id}
+              onReceiptPress={setSelectedReceipt}
+            />
           ))}
 
           {(!expenses || expenses.length === 0) && !isLoading && (
@@ -168,6 +310,7 @@ export default function ExpensesScreen() {
               <Text style={styles.emptyText}>Noch keine Ausgaben</Text>
             </View>
           )}
+        </View>
         </View>
       </ScrollView>
 
@@ -259,6 +402,72 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111',
   },
+  mandatorySettlementCard: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#EF4444',
+  },
+  mandatorySettlementHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  mandatorySettlementTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  mandatorySettlementText: {
+    fontSize: 14,
+    color: '#7F1D1D',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  mandatorySettlementButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  mandatorySettlementButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  mandatorySettlementHelpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  mandatorySettlementHelpText: {
+    fontSize: 13,
+    color: '#6B7280',
+    textDecorationLine: 'underline',
+  },
+  quittButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+  },
+  quittButtonText: {
+    color: '#10B981',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,10 +478,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
+  addButtonDisabled: {
+    backgroundColor: '#E5E7EB',
+    opacity: 0.6,
+  },
   addButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  addButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   expenseList: {
     marginTop: 0,
@@ -301,10 +517,32 @@ const styles = StyleSheet.create({
   expenseInfo: {
     flex: 1,
   },
+  descriptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
   expenseDescription: {
     fontSize: 14,
     fontWeight: '600',
     color: '#111',
+  },
+  memoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  memoBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#F59E0B',
   },
   expenseDetails: {
     fontSize: 12,

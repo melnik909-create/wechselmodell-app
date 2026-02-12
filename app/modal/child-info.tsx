@@ -1,17 +1,78 @@
-import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
 import { COLORS } from '@/lib/constants';
 import type { Child, EmergencyContact } from '@/types';
-import { getSignedUrl } from '@/lib/image-upload';
+import { useResponsive } from '@/hooks/useResponsive';
+
+// Create a generic signed URL request function (similar to getReceiptImageUrl)
+async function requestSignedDownloadUrl(familyId: string, bucket: string, path: string): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated');
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const response = await fetch(
+    `${supabaseUrl}/functions/v1/create_download_url`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ family_id: familyId, bucket, path }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to get signed URL');
+  }
+
+  const { signedUrl } = await response.json();
+  return signedUrl;
+}
+
+// Hook for fetching signed avatar URL with caching
+function useAvatarSignedUrl(familyId: string | undefined, childId: string | undefined, path: string | null) {
+  return useQuery({
+    queryKey: ['avatarSignedUrl', familyId, childId, path],
+    queryFn: async () => {
+      if (!path || !familyId) return null;
+
+      // Legacy support: if path is old URL format, use directly
+      if (path.startsWith('http')) {
+        console.warn('Legacy avatar URL detected:', path);
+        return path;
+      }
+
+      // Fetch signed download URL via Edge Function
+      try {
+        const signedUrl = await requestSignedDownloadUrl(familyId, 'avatars', path);
+        return signedUrl;
+      } catch (error: any) {
+        if (error.message?.includes('Cloud Plus') ||
+            error.message?.includes('402') ||
+            error.message?.includes('Payment Required')) {
+          console.log('Cloud Plus required to view avatar');
+          return null;
+        }
+        throw error;
+      }
+    },
+    enabled: !!path && !!familyId,
+    staleTime: 9 * 60 * 1000, // 9 minutes (before 10-minute expiry)
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
 
 export default function ChildInfoScreen() {
+  const { contentMaxWidth } = useResponsive();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
+  const { family } = useAuth();
 
   const { data: child, isLoading, error: queryError } = useQuery({
     queryKey: ['child', id],
@@ -43,18 +104,8 @@ export default function ChildInfoScreen() {
     enabled: !!id,
   });
 
-  // Load avatar signed URL
-  useEffect(() => {
-    async function loadAvatar() {
-      if (child?.avatar_url) {
-        const url = await getSignedUrl('avatars', child.avatar_url);
-        setAvatarSignedUrl(url);
-      } else {
-        setAvatarSignedUrl(null);
-      }
-    }
-    loadAvatar();
-  }, [child?.avatar_url]);
+  // Load avatar signed URL with caching
+  const { data: avatarSignedUrl } = useAvatarSignedUrl(family?.id, id, child?.avatar_url ?? null);
 
   if (!id) {
     return (
@@ -111,6 +162,7 @@ export default function ChildInfoScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Header Card */}
         <View style={styles.headerCard}>
           <View style={styles.avatar}>
@@ -326,6 +378,7 @@ export default function ChildInfoScreen() {
           <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
           <Text style={styles.editButtonText}>Bearbeiten</Text>
         </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

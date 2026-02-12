@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { registerForPushNotifications } from './notifications';
+import { EncryptionService } from './encryption';
 import type { Profile, Family, FamilyMember } from '@/types';
 
 interface AuthState {
@@ -39,6 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setState(prev => ({ ...prev, session, user: session.user }));
+        // Initialize encryption master key
+        EncryptionService.initializeMasterKey().catch((error) => {
+          console.error('Failed to initialize encryption key:', error);
+        });
         loadUserData(session.user.id);
       } else {
         setState(prev => ({ ...prev, isLoading: false }));
@@ -100,6 +106,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isOnboarded,
         isLoading: false,
       }));
+
+      // Register for push notifications
+      registerForPushNotifications(userId).catch((error) => {
+        console.error('Failed to register for push notifications:', error);
+      });
     } catch {
       setState(prev => ({ ...prev, isLoading: false }));
     }
@@ -128,6 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    // Clear encryption key from memory for security
+    EncryptionService.clearMasterKey();
     await supabase.auth.signOut();
   }
 

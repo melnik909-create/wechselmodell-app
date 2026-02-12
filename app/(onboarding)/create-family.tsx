@@ -16,9 +16,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { generateInviteCode } from '@/lib/constants';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function CreateFamilyScreen() {
   const { user, refreshFamily } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const [familyName, setFamilyName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,29 +36,13 @@ export default function CreateFamilyScreen() {
     try {
       const code = generateInviteCode();
 
-      // Create family
-      const { data: family, error: familyError } = await supabase
-        .from('families')
-        .insert({
-          name: familyName.trim(),
-          invite_code: code,
-          created_by: user!.id,
-        })
-        .select()
-        .single();
+      // Create family + add member via server function (bypasses RLS)
+      const { data: family, error } = await supabase.rpc('create_family_with_member', {
+        family_name: familyName.trim(),
+        invite_code_param: code,
+      });
 
-      if (familyError) throw familyError;
-
-      // Add creator as parent_a
-      const { error: memberError } = await supabase
-        .from('family_members')
-        .insert({
-          family_id: family.id,
-          user_id: user!.id,
-          role: 'parent_a',
-        });
-
-      if (memberError) throw memberError;
+      if (error) throw error;
 
       setInviteCode(code);
       setCreated(true);
@@ -71,7 +57,7 @@ export default function CreateFamilyScreen() {
   async function handleShare() {
     try {
       await Share.share({
-        message: `Tritt unserer Familie im WechselPlaner bei! Dein Einladungscode: ${inviteCode}`,
+        message: `Tritt unserer Familie im Wechselmodell-Planer bei! Dein Einladungscode: ${inviteCode}`,
       });
     } catch {}
   }
@@ -79,32 +65,34 @@ export default function CreateFamilyScreen() {
   if (created) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.createdContainer}>
-          <View style={styles.successIcon}>
-            <MaterialCommunityIcons name="check-circle" size={48} color="#10B981" />
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%', flex: 1 }}>
+          <View style={styles.createdContainer}>
+            <View style={styles.successIcon}>
+              <MaterialCommunityIcons name="check-circle" size={48} color="#10B981" />
+            </View>
+            <Text style={styles.successTitle}>Familie erstellt!</Text>
+            <Text style={styles.successSubtitle}>
+              Teile diesen Code mit dem anderen Elternteil:
+            </Text>
+
+            <View style={styles.codeCard}>
+              <Text style={styles.codeText}>{inviteCode}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+              <MaterialCommunityIcons name="share-variant" size={20} color="#4F46E5" />
+              <Text style={styles.shareButtonText}>Code teilen</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.successTitle}>Familie erstellt!</Text>
-          <Text style={styles.successSubtitle}>
-            Teile diesen Code mit dem anderen Elternteil:
-          </Text>
 
-          <View style={styles.codeCard}>
-            <Text style={styles.codeText}>{inviteCode}</Text>
+          <View style={styles.bottomButton}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.push('/(onboarding)/add-children')}
+            >
+              <Text style={styles.buttonText}>Weiter: Kinder hinzufuegen</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <MaterialCommunityIcons name="share-variant" size={20} color="#4F46E5" />
-            <Text style={styles.shareButtonText}>Code teilen</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.bottomButton}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => router.push('/(onboarding)/add-children')}
-          >
-            <Text style={styles.buttonText}>Weiter: Kinder hinzufuegen</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -112,34 +100,36 @@ export default function CreateFamilyScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Familie erstellen</Text>
-        <Text style={styles.subtitle}>Gib eurer Familie einen Namen.</Text>
+      <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%', flex: 1 }}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Familie erstellen</Text>
+          <Text style={styles.subtitle}>Gib eurer Familie einen Namen.</Text>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Familienname</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="z.B. Familie Mueller"
-            value={familyName}
-            onChangeText={setFamilyName}
-            editable={!loading}
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Familienname</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="z.B. Familie Mueller"
+              value={familyName}
+              onChangeText={setFamilyName}
+              editable={!loading}
+            />
+          </View>
         </View>
-      </View>
 
-      <View style={styles.bottomButton}>
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleCreate}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Familie erstellen</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.bottomButton}>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleCreate}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Familie erstellen</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );

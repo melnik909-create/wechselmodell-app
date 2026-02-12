@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCustodyPattern } from '@/hooks/useFamily';
 import { useUpdateHandoverDay } from '@/hooks/useFamily';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const WEEKDAYS = [
   { value: 1, label: 'Montag', short: 'Mo' },
@@ -24,6 +25,7 @@ const WEEKDAYS = [
 ];
 
 export default function ConfigHandoverDayModal() {
+  const { contentMaxWidth } = useResponsive();
   const { data: pattern } = useCustodyPattern();
   const updateHandoverDay = useUpdateHandoverDay();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -78,6 +80,7 @@ export default function ConfigHandoverDayModal() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Info Box */}
         <View style={styles.infoBox}>
           <MaterialCommunityIcons name="information-outline" size={20} color="#3B82F6" />
@@ -137,6 +140,7 @@ export default function ConfigHandoverDayModal() {
             {updateHandoverDay.isPending ? 'Wird gespeichert...' : 'Übergabetag festlegen'}
           </Text>
         </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

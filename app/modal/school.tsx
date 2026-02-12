@@ -10,8 +10,10 @@ import { useAuth } from '@/lib/auth';
 import { TASK_PRIORITY_LABELS, ATTENDANCE_STATUS_LABELS, type TaskPriority, type SchoolTask, type AttendanceStatus, type Event } from '@/types';
 import { formatDayMonth } from '@/lib/date-utils';
 import { COLORS } from '@/lib/constants';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function SchoolModal() {
+  const { contentMaxWidth } = useResponsive();
   const { user } = useAuth();
   const { data: tasks } = useSchoolTasks();
   const { data: children } = useChildren();
@@ -117,6 +119,7 @@ export default function SchoolModal() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Tasks Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -331,6 +334,7 @@ export default function SchoolModal() {
             <MaterialCommunityIcons name="plus" size={16} color={COLORS.primary} />
             <Text style={styles.addEventButtonText}>Termin hinzufügen</Text>
           </TouchableOpacity>
+        </View>
         </View>
       </ScrollView>
     </SafeAreaView>

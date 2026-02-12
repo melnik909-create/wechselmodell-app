@@ -15,6 +15,8 @@ import { useChildren } from '@/hooks/useFamily';
 import { useAddEvent } from '@/hooks/useFamily';
 import { EVENT_CATEGORY_LABELS } from '@/types';
 import type { EventCategory } from '@/types';
+import DateInput from '@/components/DateInput';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function AddEventModal() {
   const params = useLocalSearchParams<{ date?: string; category?: string }>();
@@ -31,6 +33,7 @@ export default function AddEventModal() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showChildPicker, setShowChildPicker] = useState(false);
 
+  const { contentMaxWidth } = useResponsive();
   const { data: children } = useChildren();
   const addEvent = useAddEvent();
 
@@ -77,6 +80,7 @@ export default function AddEventModal() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Title */}
         <Input
           label="Titel *"
@@ -100,12 +104,14 @@ export default function AddEventModal() {
         </View>
 
         {/* Date */}
-        <Input
-          label="Datum *"
-          placeholder="YYYY-MM-DD"
-          value={date}
-          onChangeText={setDate}
-        />
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Datum * (dd.MM.yyyy)</Text>
+          <DateInput
+            value={date}
+            onChangeText={setDate}
+            placeholder="dd.MM.yyyy"
+          />
+        </View>
 
         {/* Time */}
         <Input
@@ -241,6 +247,7 @@ export default function AddEventModal() {
             {addEvent.isPending ? 'Wird erstellt...' : 'Termin erstellen'}
           </Text>
         </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

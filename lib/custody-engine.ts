@@ -3,12 +3,12 @@ import type { Parent, PatternType, CustodyPattern, DayCustody, CustodyException 
 
 // Predefined pattern sequences (one full cycle, A-first)
 const PATTERN_SEQUENCES: Record<Exclude<PatternType, 'custom'>, ('A' | 'B')[]> = {
+  // 3 days A, 3 days B = 6 day cycle
+  '3_3': ['A','A','A','B','B','B'],
+  // 5 days A, 5 days B = 10 day cycle
+  '5_5': ['A','A','A','A','A','B','B','B','B','B'],
   // 7 days A, 7 days B = 14 day cycle
   '7_7': ['A','A','A','A','A','A','A','B','B','B','B','B','B','B'],
-  // 2A, 2B, 5A, 2B, 2A, 5B = 18 day cycle
-  '2_2_5_5': ['A','A','B','B','A','A','A','A','A','B','B','A','A','B','B','B','B','B'],
-  // 2A, 2B, 3A, 2B, 2A, 3B = 14 day cycle
-  '2_2_3': ['A','A','B','B','A','A','A','B','B','A','A','B','B','B'],
   // 14 days A, 14 days B = 28 day cycle
   '14_14': ['A','A','A','A','A','A','A','A','A','A','A','A','A','A','B','B','B','B','B','B','B','B','B','B','B','B','B','B'],
 };
@@ -141,12 +141,12 @@ export function getCycleLength(patternType: PatternType, customSequence?: Parent
  */
 export function getPatternDescription(patternType: PatternType): string {
   switch (patternType) {
+    case '3_3':
+      return '3 Tage bei einem Elternteil, dann 3 Tage beim anderen.';
+    case '5_5':
+      return '5 Tage bei einem Elternteil, dann 5 Tage beim anderen.';
     case '7_7':
       return 'Jede Woche wechselnd: 7 Tage bei einem Elternteil, dann 7 Tage beim anderen.';
-    case '2_2_5_5':
-      return '2 Tage bei A, 2 bei B, 5 bei A, dann 2 bei B, 2 bei A, 5 bei B.';
-    case '2_2_3':
-      return '2 Tage bei A, 2 bei B, 3 bei A, dann umgekehrt.';
     case '14_14':
       return '2 Wochen bei einem Elternteil, dann 2 Wochen beim anderen.';
     case 'custom':

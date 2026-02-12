@@ -6,10 +6,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useAddExpense } from '@/hooks/useExpenses';
 import { useChildren } from '@/hooks/useFamily';
+import { useEntitlements } from '@/hooks/useEntitlements';
 import { EXPENSE_CATEGORY_LABELS, type ExpenseCategory } from '@/types';
 import ImagePickerButton from '@/components/ImagePickerButton';
 import { uploadImage } from '@/lib/image-upload';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const CATEGORIES: ExpenseCategory[] = [
   'clothing', 'medical', 'school', 'daycare', 'sports',
@@ -17,8 +19,10 @@ const CATEGORIES: ExpenseCategory[] = [
 ];
 
 export default function AddExpenseModal() {
+  const { contentMaxWidth } = useResponsive();
   const { user, family } = useAuth();
   const { data: children } = useChildren();
+  const { data: entitlements } = useEntitlements();
   const addExpense = useAddExpense();
 
   const [amount, setAmount] = useState('');
@@ -29,6 +33,7 @@ export default function AddExpenseModal() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptAsset, setReceiptAsset] = useState<ImagePickerAsset | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isMemo, setIsMemo] = useState(false);
 
   async function handleSave() {
     const numAmount = parseFloat(amount.replace(',', '.'));
@@ -47,7 +52,27 @@ export default function AddExpenseModal() {
       // Upload receipt image if present
       let receiptUrl: string | null = null;
       if (receiptUri && family) {
-        receiptUrl = await uploadImage(receiptUri, 'receipts', family.id);
+        // Check Cloud Plus entitlement before upload
+        if (!entitlements?.canUpload) {
+          router.push('/modal/cloud-plus');
+          setIsUploading(false);
+          return;
+        }
+
+        try {
+          // Upload via Edge Function (returns PATH, not URL)
+          receiptUrl = await uploadImage(receiptUri, 'receipt', family.id);
+        } catch (uploadError: any) {
+          // Handle Cloud Plus requirement error
+          if (uploadError.message?.includes('Cloud Plus') ||
+              uploadError.message?.includes('402') ||
+              uploadError.message?.includes('Payment Required')) {
+            router.push('/modal/cloud-plus');
+            setIsUploading(false);
+            return;
+          }
+          throw uploadError;
+        }
       }
 
       await addExpense.mutateAsync({
@@ -60,6 +85,7 @@ export default function AddExpenseModal() {
         split_percentage: 50,
         receipt_url: receiptUrl,
         date: new Date().toISOString().split('T')[0],
+        is_memo: isMemo,
       });
       router.back();
     } catch (error: any) {
@@ -89,6 +115,7 @@ export default function AddExpenseModal() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
           {/* Receipt Photo */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Beleg (optional)</Text>
@@ -216,6 +243,28 @@ export default function AddExpenseModal() {
                 Individuell
               </Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Memo Checkbox (only for 50/50 split) */}
+          {splitType === '50_50' && (
+            <TouchableOpacity
+              style={styles.memoContainer}
+              onPress={() => setIsMemo(!isMemo)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name={isMemo ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                size={24}
+                color="#4F46E5"
+              />
+              <View style={styles.memoTextContainer}>
+                <Text style={styles.memoLabel}>Nur zur Erinnerung (Memo)</Text>
+                <Text style={styles.memoHint}>
+                  Wird nicht im Saldo berechnet (bereits ausgeglichen)
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
           </View>
         </ScrollView>
 
@@ -376,6 +425,32 @@ const styles = StyleSheet.create({
   },
   splitButtonTextUnselected: {
     color: '#6B7280',
+  },
+  memoContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 8,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  memoTextContainer: {
+    flex: 1,
+  },
+  memoLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
+    marginBottom: 4,
+  },
+  memoHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
   },
   buttonContainer: {
     padding: 16,

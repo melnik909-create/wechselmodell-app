@@ -16,14 +16,17 @@ import { useUpdatePattern } from '@/hooks/useFamily';
 import { PATTERN_LABELS } from '@/types';
 import type { PatternType, Parent } from '@/types';
 import { format } from 'date-fns';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const PATTERN_OPTIONS: { type: PatternType; description: string }[] = [
+  { type: '3_3', description: '3 Tage bei A, dann 3 Tage bei B' },
+  { type: '5_5', description: '5 Tage bei A, dann 5 Tage bei B' },
   { type: '7_7', description: '1 Woche bei A, 1 Woche bei B' },
-  { type: '2_2_5_5', description: '2 Tage A, 2 Tage B, 5 Tage A, dann umgekehrt' },
-  { type: '2_2_3', description: '2 Tage A, 2 Tage B, 3 Tage A, dann umgekehrt' },
+  { type: '14_14', description: '2 Wochen bei A, dann 2 Wochen bei B' },
 ];
 
 export default function ChangePatternModal() {
+  const { contentMaxWidth } = useResponsive();
   const { data: currentPattern } = useCustodyPattern();
   const { data: members } = useFamilyMembers();
   const updatePattern = useUpdatePattern();
@@ -92,6 +95,7 @@ export default function ChangePatternModal() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Current Pattern Info */}
         {currentPattern && (
           <View style={styles.infoBox}>
@@ -196,6 +200,7 @@ export default function ChangePatternModal() {
             {updatePattern.isPending ? 'Wird geändert...' : 'Modell ändern'}
           </Text>
         </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

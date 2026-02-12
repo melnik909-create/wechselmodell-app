@@ -2,8 +2,16 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '@/lib/auth';
 
+// DEV_SKIP_AUTH: true = direkt zu Tabs, false = normale Auth
+const DEV_SKIP_AUTH = false;
+
 export default function Index() {
   const { session, isLoading, isOnboarded } = useAuth();
+
+  // Auth komplett überspringen zum Testen
+  if (DEV_SKIP_AUTH) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   if (isLoading) {
     return (

@@ -1,27 +1,32 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function WelcomeScreen() {
+  const { contentMaxWidth } = useResponsive();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Willkommen bei WechselPlaner</Text>
-      <Text style={styles.subtitle}>
-        Organisiert gemeinsam den Alltag eurer Kinder
-      </Text>
+      <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+        <Text style={styles.title}>Willkommen bei Wechselmodell-Planer</Text>
+        <Text style={styles.subtitle}>
+          Organisiert gemeinsam den Alltag eurer Kinder
+        </Text>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push('/(onboarding)/create-family')}
-      >
-        <Text style={styles.buttonText}>Familie erstellen</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push('/(onboarding)/create-family')}
+        >
+          <Text style={styles.buttonText}>Familie erstellen</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.button, styles.buttonSecondary]}
-        onPress={() => router.push('/(onboarding)/join-family')}
-      >
-        <Text style={styles.buttonTextSecondary}>Familie beitreten</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonSecondary]}
+          onPress={() => router.push('/(onboarding)/join-family')}
+        >
+          <Text style={styles.buttonTextSecondary}>Familie beitreten</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

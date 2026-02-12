@@ -12,9 +12,11 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function JoinFamilyScreen() {
   const { user, refreshFamily } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -80,41 +82,43 @@ export default function JoinFamilyScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Familie beitreten</Text>
-        <Text style={styles.subtitle}>
-          Gib den Einladungscode ein, den du vom anderen Elternteil erhalten hast.
-        </Text>
+      <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%', flex: 1 }}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Familie beitreten</Text>
+          <Text style={styles.subtitle}>
+            Gib den Einladungscode ein, den du vom anderen Elternteil erhalten hast.
+          </Text>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Einladungscode</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="z.B. A3K9X2"
-            value={code}
-            onChangeText={(text) => setCode(text.toUpperCase())}
-            autoCapitalize="characters"
-            editable={!loading}
-          />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Einladungscode</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="z.B. A3K9X2"
+              value={code}
+              onChangeText={(text) => setCode(text.toUpperCase())}
+              autoCapitalize="characters"
+              editable={!loading}
+            />
+          </View>
         </View>
-      </View>
 
-      <View style={styles.bottomButtons}>
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleJoin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Beitreten</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.bottomButtons}>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleJoin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Beitreten</Text>
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.buttonGhost} onPress={() => router.back()}>
-          <Text style={styles.buttonGhostText}>Zurueck</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.buttonGhost} onPress={() => router.back()}>
+            <Text style={styles.buttonGhostText}>Zurueck</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );

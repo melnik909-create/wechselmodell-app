@@ -18,9 +18,11 @@ import { PATTERN_LABELS, type PatternType, type Parent } from '@/types';
 import { getPatternDescription, getCustodyForRange } from '@/lib/custody-engine';
 import { addDays } from 'date-fns';
 import { formatShortDay, formatDayMonth } from '@/lib/date-utils';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function SelectPatternScreen() {
   const { family, refreshFamily } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const [selectedPattern, setSelectedPattern] = useState<PatternType>('7_7');
   const [startingParent, setStartingParent] = useState<Parent>('parent_a');
   const [loading, setLoading] = useState(false);
@@ -72,119 +74,121 @@ export default function SelectPatternScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Betreuungsmodell</Text>
-        <Text style={styles.subtitle}>Wie teilt ihr die Betreuung auf?</Text>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+          <Text style={styles.title}>Betreuungsmodell</Text>
+          <Text style={styles.subtitle}>Wie teilt ihr die Betreuung auf?</Text>
 
-        {/* Pattern Options */}
-        <View style={styles.patternList}>
-          {(Object.keys(PATTERN_LABELS) as PatternType[])
-            .filter((p) => p !== 'custom')
-            .map((pattern) => (
-              <TouchableOpacity
-                key={pattern}
-                style={[
-                  styles.patternCard,
-                  selectedPattern === pattern && styles.patternCardSelected,
-                ]}
-                onPress={() => setSelectedPattern(pattern)}
-              >
-                <View style={styles.patternCardContent}>
-                  <View style={styles.patternCardText}>
-                    <Text style={styles.patternTitle}>{PATTERN_LABELS[pattern]}</Text>
-                    <Text style={styles.patternDescription}>
-                      {getPatternDescription(pattern)}
-                    </Text>
-                  </View>
-                  {selectedPattern === pattern && (
-                    <MaterialCommunityIcons name="check-circle" size={24} color={COLORS.primary} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-        </View>
-
-        {/* Starting Parent */}
-        <Text style={styles.sectionTitle}>Wer hat die Kinder zuerst?</Text>
-        <View style={styles.parentRow}>
-          <TouchableOpacity
-            onPress={() => setStartingParent('parent_a')}
-            style={[
-              styles.parentButton,
-              startingParent === 'parent_a' && styles.parentButtonSelectedA,
-            ]}
-          >
-            <Text
-              style={[
-                styles.parentButtonText,
-                startingParent === 'parent_a' && styles.parentButtonTextSelectedA,
-              ]}
-            >
-              Elternteil A
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setStartingParent('parent_b')}
-            style={[
-              styles.parentButton,
-              startingParent === 'parent_b' && styles.parentButtonSelectedB,
-            ]}
-          >
-            <Text
-              style={[
-                styles.parentButtonText,
-                startingParent === 'parent_b' && styles.parentButtonTextSelectedB,
-              ]}
-            >
-              Elternteil B
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Preview */}
-        <Text style={styles.sectionTitle}>Vorschau (naechste 14 Tage)</Text>
-        <View style={styles.previewCard}>
-          <View style={styles.previewGrid}>
-            {preview.map((day, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.previewDay,
-                  {
-                    backgroundColor:
-                      day.parent === 'parent_a'
-                        ? PARENT_COLORS.parent_a + '20'
-                        : PARENT_COLORS.parent_b + '20',
-                  },
-                ]}
-              >
-                <Text style={styles.previewDayName}>{formatShortDay(day.date)}</Text>
-                <View
+          {/* Pattern Options */}
+          <View style={styles.patternList}>
+            {(Object.keys(PATTERN_LABELS) as PatternType[])
+              .filter((p) => p !== 'custom')
+              .map((pattern) => (
+                <TouchableOpacity
+                  key={pattern}
                   style={[
-                    styles.previewBadge,
+                    styles.patternCard,
+                    selectedPattern === pattern && styles.patternCardSelected,
+                  ]}
+                  onPress={() => setSelectedPattern(pattern)}
+                >
+                  <View style={styles.patternCardContent}>
+                    <View style={styles.patternCardText}>
+                      <Text style={styles.patternTitle}>{PATTERN_LABELS[pattern]}</Text>
+                      <Text style={styles.patternDescription}>
+                        {getPatternDescription(pattern)}
+                      </Text>
+                    </View>
+                    {selectedPattern === pattern && (
+                      <MaterialCommunityIcons name="check-circle" size={24} color={COLORS.primary} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+          </View>
+
+          {/* Starting Parent */}
+          <Text style={styles.sectionTitle}>Wer hat die Kinder zuerst?</Text>
+          <View style={styles.parentRow}>
+            <TouchableOpacity
+              onPress={() => setStartingParent('parent_a')}
+              style={[
+                styles.parentButton,
+                startingParent === 'parent_a' && styles.parentButtonSelectedA,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.parentButtonText,
+                  startingParent === 'parent_a' && styles.parentButtonTextSelectedA,
+                ]}
+              >
+                Elternteil A
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setStartingParent('parent_b')}
+              style={[
+                styles.parentButton,
+                startingParent === 'parent_b' && styles.parentButtonSelectedB,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.parentButtonText,
+                  startingParent === 'parent_b' && styles.parentButtonTextSelectedB,
+                ]}
+              >
+                Elternteil B
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Preview */}
+          <Text style={styles.sectionTitle}>Vorschau (naechste 14 Tage)</Text>
+          <View style={styles.previewCard}>
+            <View style={styles.previewGrid}>
+              {preview.map((day, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.previewDay,
                     {
-                      backgroundColor: PARENT_COLORS[day.parent],
+                      backgroundColor:
+                        day.parent === 'parent_a'
+                          ? PARENT_COLORS.parent_a + '20'
+                          : PARENT_COLORS.parent_b + '20',
                     },
                   ]}
                 >
-                  <Text style={styles.previewBadgeText}>
-                    {day.parent === 'parent_a' ? 'A' : 'B'}
-                  </Text>
+                  <Text style={styles.previewDayName}>{formatShortDay(day.date)}</Text>
+                  <View
+                    style={[
+                      styles.previewBadge,
+                      {
+                        backgroundColor: PARENT_COLORS[day.parent],
+                      },
+                    ]}
+                  >
+                    <Text style={styles.previewBadgeText}>
+                      {day.parent === 'parent_a' ? 'A' : 'B'}
+                    </Text>
+                  </View>
+                  <Text style={styles.previewDate}>{formatDayMonth(day.date)}</Text>
                 </View>
-                <Text style={styles.previewDate}>{formatDayMonth(day.date)}</Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_a }]} />
-            <Text style={styles.legendText}>Elternteil A</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_b }]} />
-            <Text style={styles.legendText}>Elternteil B</Text>
+          {/* Legend */}
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_a }]} />
+              <Text style={styles.legendText}>Elternteil A</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_b }]} />
+              <Text style={styles.legendText}>Elternteil B</Text>
+            </View>
           </View>
         </View>
       </ScrollView>

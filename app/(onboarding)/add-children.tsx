@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { useResponsive } from '@/hooks/useResponsive';
 
 interface ChildEntry {
   name: string;
@@ -22,6 +23,7 @@ interface ChildEntry {
 
 export default function AddChildrenScreen() {
   const { family } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const [children, setChildren] = useState<ChildEntry[]>([{ name: '', dateOfBirth: '' }]);
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +42,21 @@ export default function AddChildrenScreen() {
     );
   }
 
+  function parseDateToISO(input: string): string | null {
+    if (!input.trim()) return null;
+    // DD.MM.YYYY or DD/MM/YYYY → YYYY-MM-DD
+    const match = input.trim().match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+    if (match) {
+      const [, day, month, year] = match;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    // Already ISO format (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(input.trim())) {
+      return input.trim();
+    }
+    return null;
+  }
+
   async function handleSave() {
     const validChildren = children.filter((c) => c.name.trim());
     if (validChildren.length === 0) {
@@ -52,12 +69,20 @@ export default function AddChildrenScreen() {
       return;
     }
 
+    // Validate dates
+    for (const child of validChildren) {
+      if (child.dateOfBirth && !parseDateToISO(child.dateOfBirth)) {
+        Alert.alert('Fehler', `Ungueltiges Datum "${child.dateOfBirth}". Bitte im Format TT.MM.JJJJ eingeben.`);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const inserts = validChildren.map((child) => ({
         family_id: family.id,
         name: child.name.trim(),
-        date_of_birth: child.dateOfBirth || null,
+        date_of_birth: parseDateToISO(child.dateOfBirth),
       }));
 
       const { error } = await supabase.from('children').insert(inserts);
@@ -74,46 +99,48 @@ export default function AddChildrenScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Kinder hinzufuegen</Text>
-        <Text style={styles.subtitle}>Fuer welche Kinder organisiert ihr euch?</Text>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+          <Text style={styles.title}>Kinder hinzufuegen</Text>
+          <Text style={styles.subtitle}>Fuer welche Kinder organisiert ihr euch?</Text>
 
-        {children.map((child, index) => (
-          <View key={index} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Kind {index + 1}</Text>
-              {children.length > 1 && (
-                <TouchableOpacity onPress={() => removeChild(index)}>
-                  <MaterialCommunityIcons name="close-circle" size={22} color="#9CA3AF" />
-                </TouchableOpacity>
-              )}
+          {children.map((child, index) => (
+            <View key={index} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Kind {index + 1}</Text>
+                {children.length > 1 && (
+                  <TouchableOpacity onPress={() => removeChild(index)}>
+                    <MaterialCommunityIcons name="close-circle" size={22} color="#9CA3AF" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.inputGroup}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Name des Kindes"
+                  value={child.name}
+                  onChangeText={(text) => updateChild(index, 'name', text)}
+                  autoCapitalize="words"
+                  editable={!loading}
+                />
+              </View>
+              <View style={styles.inputGroup}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Geburtsdatum (optional, z.B. 15.05.2018)"
+                  value={child.dateOfBirth}
+                  onChangeText={(text) => updateChild(index, 'dateOfBirth', text)}
+                  keyboardType="numeric"
+                  editable={!loading}
+                />
+              </View>
             </View>
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={styles.input}
-                placeholder="Name des Kindes"
-                value={child.name}
-                onChangeText={(text) => updateChild(index, 'name', text)}
-                autoCapitalize="words"
-                editable={!loading}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <TextInput
-                style={styles.input}
-                placeholder="Geburtsdatum (optional, z.B. 2018-05-15)"
-                value={child.dateOfBirth}
-                onChangeText={(text) => updateChild(index, 'dateOfBirth', text)}
-                keyboardType="numeric"
-                editable={!loading}
-              />
-            </View>
-          </View>
-        ))}
+          ))}
 
-        <TouchableOpacity style={styles.addButton} onPress={addChild}>
-          <MaterialCommunityIcons name="plus-circle-outline" size={22} color="#4F46E5" />
-          <Text style={styles.addButtonText}>Weiteres Kind hinzufuegen</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={addChild}>
+            <MaterialCommunityIcons name="plus-circle-outline" size={22} color="#4F46E5" />
+            <Text style={styles.addButtonText}>Weiteres Kind hinzufuegen</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <View style={styles.bottomButton}>

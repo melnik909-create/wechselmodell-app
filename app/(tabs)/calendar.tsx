@@ -6,17 +6,19 @@ import { router } from 'expo-router';
 import { useCustodyPattern, useCustodyExceptions, useFamilyMembers, useAcceptException, useRejectException, useEvents } from '@/hooks/useFamily';
 import { getCustodyForDate, buildExceptionMap, formatDateKey } from '@/lib/custody-engine';
 import { getMonthDays, formatMonthYear, isToday, formatFullDate, formatDayMonth } from '@/lib/date-utils';
-import { PARENT_COLORS, COLORS } from '@/lib/constants';
+import { PARENT_COLORS, COLORS, EXCEPTION_COLORS } from '@/lib/constants';
 import { EXCEPTION_REASON_LABELS, EVENT_CATEGORY_LABELS } from '@/types';
 import { addMonths, subMonths, isSameMonth, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import type { Parent, EventCategory } from '@/types';
 import { useAuth } from '@/lib/auth';
+import { useResponsive } from '@/hooks/useResponsive';
 
 const WEEKDAY_HEADERS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 export default function CalendarScreen() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { user, family } = useAuth();
+  const { contentMaxWidth } = useResponsive();
   const { data: pattern } = useCustodyPattern();
   const { data: exceptions } = useCustodyExceptions();
   const { data: members } = useFamilyMembers();
@@ -117,6 +119,7 @@ export default function CalendarScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Pending Exceptions */}
         {pendingExceptions.length > 0 && (
           <View style={styles.pendingSection}>
@@ -204,8 +207,9 @@ export default function CalendarScreen() {
                 ? getCustodyForDate(pattern, day, exceptionMap)
                 : null;
               const dateKey = formatDateKey(day);
-              const hasException = exceptions?.some(
-                (e) => e.date === dateKey && e.status === 'accepted'
+              // Get exception for this date (proposed or accepted)
+              const exception = exceptions?.find(
+                (e) => e.date === dateKey && (e.status === 'proposed' || e.status === 'accepted')
               );
               const eventCount = eventsByDate.get(dateKey) || 0;
 
@@ -238,8 +242,15 @@ export default function CalendarScreen() {
                     </Text>
                   </View>
                   <View style={styles.dayIndicators}>
-                    {hasException && inCurrentMonth && (
-                      <View style={styles.exceptionDot} />
+                    {exception && inCurrentMonth && (
+                      <View style={[
+                        styles.exceptionDot,
+                        {
+                          backgroundColor: exception.status === 'proposed'
+                            ? EXCEPTION_COLORS.proposed  // GELB
+                            : EXCEPTION_COLORS.accepted   // GRÜN
+                        }
+                      ]} />
                     )}
                     {eventCount > 0 && inCurrentMonth && (
                       <View style={styles.eventDot} />
@@ -266,8 +277,12 @@ export default function CalendarScreen() {
             <Text style={styles.legendText}>{parentName('parent_b')}</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, styles.exceptionDot]} />
-            <Text style={styles.legendText}>Ausnahme</Text>
+            <View style={[styles.legendDot, { backgroundColor: EXCEPTION_COLORS.proposed }]} />
+            <Text style={styles.legendText}>Ausnahme (Pipeline)</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: EXCEPTION_COLORS.accepted }]} />
+            <Text style={styles.legendText}>Ausnahme (OK!)</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, styles.eventDot]} />
@@ -352,6 +367,7 @@ export default function CalendarScreen() {
             )}
           </View>
         )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -451,7 +467,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#EC4899', // Pink
   },
   legend: {
     flexDirection: 'row',

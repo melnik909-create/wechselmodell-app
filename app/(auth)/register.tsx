@@ -15,9 +15,11 @@ import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function RegisterScreen() {
   const { signUp } = useAuth();
+  const { contentMaxWidth, isLandscape } = useResponsive();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,15 +28,33 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     if (!name.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Fehler', 'Bitte alle Felder ausfuellen.');
+      Alert.alert('Fehler', 'Bitte alle Felder ausfüllen.');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Fehler', 'Die Passwoerter stimmen nicht ueberein.');
+      Alert.alert('Fehler', 'Die Passwörter stimmen nicht überein.');
       return;
     }
-    if (password.length < 6) {
-      Alert.alert('Fehler', 'Das Passwort muss mindestens 6 Zeichen lang sein.');
+
+    // Sichere Passwort-Validierung
+    if (password.length < 8) {
+      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens 8 Zeichen lang sein.');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens einen Großbuchstaben enthalten.');
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens einen Kleinbuchstaben enthalten.');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens eine Zahl enthalten.');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens ein Sonderzeichen enthalten (!@#$%^&* etc.).');
       return;
     }
 
@@ -63,16 +83,21 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <View style={[{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }]}>
           {/* Logo */}
-          <View style={styles.logoContainer}>
-            <MaterialCommunityIcons name="calendar-sync" size={60} color="#4F46E5" />
-            <Text style={styles.appName}>WechselPlaner</Text>
-            <Text style={styles.tagline}>Gemeinsam organisiert - Fair gelöst</Text>
-            <Text style={styles.subtagline}>So geht Co-Parenting ohne Kopfschmerzen</Text>
+          <View style={[styles.logoContainer, isLandscape && { marginBottom: 16 }]}>
+            <MaterialCommunityIcons name="calendar-sync" size={isLandscape ? 40 : 60} color="#4F46E5" />
+            <Text style={styles.appName}>Wechselmodell-Planer</Text>
+            {!isLandscape && (
+              <>
+                <Text style={styles.tagline}>Gemeinsam organisiert – Fair gelöst.</Text>
+                <Text style={styles.subtagline}>So geht Co-Parenting ohne Kopfschmerzen.</Text>
+              </>
+            )}
           </View>
 
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, isLandscape && { marginBottom: 16 }]}>
             <Text style={styles.title}>Konto erstellen</Text>
           </View>
 
@@ -107,7 +132,7 @@ export default function RegisterScreen() {
               <Text style={styles.label}>Passwort</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Mindestens 6 Zeichen"
+                placeholder="Mindestens 8 Zeichen"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -116,7 +141,7 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Passwort bestaetigen</Text>
+              <Text style={styles.label}>Passwort bestätigen</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Passwort wiederholen"
@@ -125,6 +150,25 @@ export default function RegisterScreen() {
                 secureTextEntry
                 editable={!loading}
               />
+            </View>
+
+            <View style={styles.passwordRequirements}>
+              <Text style={styles.requirementsTitle}>Passwort-Anforderungen:</Text>
+              <Text style={[styles.requirementItem, password.length >= 8 && styles.requirementMet]}>
+                {password.length >= 8 ? '\u2713' : '\u2022'} Mindestens 8 Zeichen
+              </Text>
+              <Text style={[styles.requirementItem, /[A-Z]/.test(password) && styles.requirementMet]}>
+                {/[A-Z]/.test(password) ? '\u2713' : '\u2022'} Ein Großbuchstabe
+              </Text>
+              <Text style={[styles.requirementItem, /[a-z]/.test(password) && styles.requirementMet]}>
+                {/[a-z]/.test(password) ? '\u2713' : '\u2022'} Ein Kleinbuchstabe
+              </Text>
+              <Text style={[styles.requirementItem, /[0-9]/.test(password) && styles.requirementMet]}>
+                {/[0-9]/.test(password) ? '\u2713' : '\u2022'} Eine Zahl
+              </Text>
+              <Text style={[styles.requirementItem, /[^A-Za-z0-9]/.test(password) && styles.requirementMet]}>
+                {/[^A-Za-z0-9]/.test(password) ? '\u2713' : '\u2022'} Ein Sonderzeichen (!@#$% etc.)
+              </Text>
             </View>
 
             <Text style={styles.disclaimer}>
@@ -151,6 +195,7 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </Link>
             </View>
+          </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -227,6 +272,28 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: '#fff',
+  },
+  passwordRequirements: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  requirementsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  requirementItem: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  requirementMet: {
+    color: '#10B981',
   },
   disclaimer: {
     fontSize: 12,

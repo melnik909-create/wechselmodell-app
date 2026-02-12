@@ -8,8 +8,10 @@ import { EVENT_CATEGORY_LABELS, type EventCategory } from '@/types';
 import { formatDayMonth } from '@/lib/date-utils';
 import { startOfMonth, format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { useResponsive } from '@/hooks/useResponsive';
 
 export default function EventsOverviewScreen() {
+  const { contentMaxWidth } = useResponsive();
   const { data: events, isLoading } = useEvents(); // No date filter - show all events
   const deleteEvent = useDeleteEvent();
 
@@ -79,6 +81,7 @@ export default function EventsOverviewScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {isLoading && (
           <View style={styles.loading}>
             <Text style={styles.loadingText}>Laden...</Text>
@@ -165,6 +168,7 @@ export default function EventsOverviewScreen() {
             </View>
           );
         })}
+        </View>
       </ScrollView>
 
       {/* Floating Action Button */}
