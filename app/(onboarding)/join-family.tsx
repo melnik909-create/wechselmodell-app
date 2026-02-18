@@ -29,12 +29,12 @@ export default function JoinFamilyScreen() {
 
     setLoading(true);
     try {
-      // Find family by invite code
-      const { data: family, error: findError } = await supabase
-        .from('families')
-        .select('*')
-        .eq('invite_code', trimmedCode)
-        .single();
+      // Find family by invite code via secure RPC (RLS-safe)
+      const { data, error: findError } = await supabase.rpc('find_family_by_invite_code', {
+        code: trimmedCode,
+      });
+
+      const family = Array.isArray(data) ? data[0] : data;
 
       if (findError || !family) {
         Alert.alert('Fehler', 'Kein guentiger Einladungscode. Bitte ueberpruefen.');
@@ -45,7 +45,7 @@ export default function JoinFamilyScreen() {
       const { data: existing } = await supabase
         .from('family_members')
         .select('id')
-        .eq('family_id', family.id)
+        .eq('family_id', family.family_id)
         .eq('user_id', user!.id)
         .single();
 
@@ -60,7 +60,7 @@ export default function JoinFamilyScreen() {
       const { error: joinError } = await supabase
         .from('family_members')
         .insert({
-          family_id: family.id,
+          family_id: family.family_id,
           user_id: user!.id,
           role: 'parent_b',
         });
@@ -70,7 +70,7 @@ export default function JoinFamilyScreen() {
       await refreshFamily();
       Alert.alert(
         'Willkommen!',
-        `Du bist der Familie "${family.name}" beigetreten.`,
+        `Du bist der Familie "${family.family_name}" beigetreten.`,
         [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (error: any) {

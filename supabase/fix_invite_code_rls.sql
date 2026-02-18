@@ -45,10 +45,11 @@ BEGIN
   END IF;
 
   -- Return only minimal info
+  -- Compare trimmed, case-insensitive to avoid minor formatting mismatches
   RETURN QUERY
   SELECT id, name
   FROM public.families
-  WHERE invite_code = code
+  WHERE UPPER(TRIM(invite_code)) = UPPER(TRIM(code))
   LIMIT 1;
 END;
 $$;
