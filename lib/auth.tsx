@@ -28,6 +28,39 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+async function extractAndSetSession(url: string) {
+  try {
+    // Supabase appends tokens as a URL fragment (#access_token=...&refresh_token=...)
+    // or as query params (?access_token=...&refresh_token=...)
+    const hashIndex = url.indexOf('#');
+    const queryIndex = url.indexOf('?');
+    const paramString =
+      hashIndex !== -1
+        ? url.substring(hashIndex + 1)
+        : queryIndex !== -1
+          ? url.substring(queryIndex + 1)
+          : '';
+
+    if (!paramString) return;
+
+    const params = new URLSearchParams(paramString);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (accessToken && refreshToken) {
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) {
+        console.error('[Auth] Failed to set session from deep link:', error.message);
+      }
+    }
+  } catch (err) {
+    console.error('[Auth] Error processing deep link:', err);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     session: null,
@@ -56,7 +89,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setState(prev => ({ ...prev, session, user: session.user }));
-        // Initialize encryption master key
         EncryptionService.initializeMasterKey().catch((error) => {
           console.error('Failed to initialize encryption key:', error);
         });
@@ -82,6 +114,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
       }
     });
+
+    // On native: listen for deep-link redirects that carry auth tokens
+    // (e.g. after email confirmation: wechselmodell-planer://login#access_token=...&refresh_token=...)
+    if (Platform.OS !== 'web') {
+      const handleDeepLink = async (event: { url: string }) => {
+        await extractAndSetSession(event.url);
+      };
+
+      const linkingSub = Linking.addEventListener('url', handleDeepLink);
+
+      // Also check the URL that opened/resumed the app
+      Linking.getInitialURL().then((url) => {
+        if (url) extractAndSetSession(url);
+      });
+
+      return () => {
+        subscription.unsubscribe();
+        linkingSub.remove();
+      };
+    }
 
     return () => subscription.unsubscribe();
   }, []);
@@ -193,10 +245,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       siteUrl ||
       (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '');
 
+    // On native: use the custom scheme so the email confirmation link opens the app directly
+    // On web: redirect back to the web app's login page
     const emailRedirectTo =
       Platform.OS === 'web'
         ? (webBaseUrl ? `${webBaseUrl}/login` : undefined)
-        : Linking.createURL('login');
+        : Linking.createURL('/');
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -208,7 +262,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw error;
 
-    // Create profile
     if (data.user) {
       await supabase.from('profiles').insert({
         id: data.user.id,
