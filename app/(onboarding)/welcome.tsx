@@ -1,9 +1,19 @@
+import { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/hooks/useResponsive';
 
 export default function WelcomeScreen() {
+  const { isOnboarded } = useAuth();
   const { contentMaxWidth } = useResponsive();
+
+  // If user is already onboarded, redirect to tabs (fixes PWA issue)
+  useEffect(() => {
+    if (isOnboarded) {
+      router.replace('/(tabs)');
+    }
+  }, [isOnboarded]);
 
   return (
     <View style={styles.container}>
