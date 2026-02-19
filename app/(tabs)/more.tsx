@@ -1,4 +1,6 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, Share, StyleSheet, Platform } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Share, StyleSheet, Platform } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,6 +13,38 @@ export default function MoreScreen() {
   const { profile, family, signOut } = useAuth();
   const { contentMaxWidth } = useResponsive();
   const { data: children } = useChildren();
+  
+  // Admin mode triple-tap detection
+  const [adminTaps, setAdminTaps] = useState(0);
+  const adminTapTimerRef = useRef<any>(null);
+
+  const handleAdminTap = () => {
+    setAdminTaps(prev => prev + 1);
+    
+    if (adminTapTimerRef.current) {
+      clearTimeout(adminTapTimerRef.current);
+    }
+
+    if (adminTaps + 1 === 3) {
+      // Open admin panel
+      router.push('/modal/admin-vip');
+      setAdminTaps(0);
+      return;
+    }
+
+    // Reset tap counter after 500ms
+    adminTapTimerRef.current = setTimeout(() => {
+      setAdminTaps(0);
+    }, 500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (adminTapTimerRef.current) {
+        clearTimeout(adminTapTimerRef.current);
+      }
+    };
+  }, []);
 
   async function handleShare() {
     if (!family) return;
@@ -22,7 +56,7 @@ export default function MoreScreen() {
   }
 
   async function handleSignOut() {
-    Alert.alert(
+    AppAlert.alert(
       'Abmelden',
       'Moechtest du dich wirklich abmelden?',
       [
@@ -36,8 +70,8 @@ export default function MoreScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
-        {/* Profile Card */}
-        <View style={styles.card}>
+        {/* Profile Card - Triple tap for admin */}
+        <TouchableOpacity style={styles.card} onPress={handleAdminTap} activeOpacity={0.7}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
@@ -48,8 +82,11 @@ export default function MoreScreen() {
               <Text style={styles.profileName}>{profile?.display_name}</Text>
               <Text style={styles.profileFamily}>{family?.name ?? 'Keine Familie'}</Text>
             </View>
+            {adminTaps > 0 && (
+              <Text style={styles.adminTapHint}>({adminTaps}/3)</Text>
+            )}
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Family Code */}
         {family && (
@@ -96,42 +133,50 @@ export default function MoreScreen() {
         <SettingsItem
           icon="calendar-sync"
           label="Betreuungsmodell ändern"
+          description="z.B. von 7/7 auf 3/3 wechseln"
           onPress={() => router.push('/modal/change-pattern')}
         />
         <SettingsItem
           icon="swap-horizontal-circle"
           label="Übergabetag konfigurieren"
+          description="z.B. Freitag als festen Übergabetag setzen"
           onPress={() => router.push('/modal/config-handover-day')}
         />
         <SettingsItem
           icon="star"
           label="Vollversion kaufen"
+          description="Alle Funktionen freischalten"
           onPress={() => router.push('/modal/paywall')}
         />
         <SettingsItem
           icon="file-document-multiple"
           label="Wichtige Dokumente"
+          description="z.B. Sorgerechtsbeschluss, Umgangsregelung"
           onPress={() => router.push('/modal/documents')}
         />
         <SettingsItem
           icon="account-edit"
           label="Elternnamen anpassen"
+          description="z.B. Mama/Papa statt Elternteil A/B"
           onPress={() => router.push('/modal/edit-parent-labels')}
         />
         <SettingsItem
           icon="help-circle"
           label="Anleitung"
+          description="So funktioniert die App"
           onPress={() => router.push('/modal/guide')}
         />
         <SettingsItem
           icon="shield-check"
           label="Datenschutz"
-          onPress={() => Alert.alert('Datenschutz', 'Deine Daten werden DSGVO-konform in Frankfurt gespeichert.')}
+          description="DSGVO-konform in Frankfurt gespeichert"
+          onPress={() => AppAlert.alert('Datenschutz', 'Deine Daten werden DSGVO-konform in Frankfurt gespeichert.')}
         />
         <SettingsItem
           icon="download"
           label="Meine Daten exportieren"
-          onPress={() => Alert.alert('Datenexport', 'Diese Funktion wird bald verfuegbar sein.')}
+          description="Alle Daten als Datei herunterladen"
+          onPress={() => AppAlert.alert('Datenexport', 'Diese Funktion wird bald verfuegbar sein.')}
         />
         <SettingsItem
           icon="logout"
@@ -148,11 +193,13 @@ export default function MoreScreen() {
 function SettingsItem({
   icon,
   label,
+  description,
   onPress,
   danger = false,
 }: {
   icon: string;
   label: string;
+  description?: string;
   onPress: () => void;
   danger?: boolean;
 }) {
@@ -167,9 +214,14 @@ function SettingsItem({
         size={22}
         color={danger ? COLORS.error : COLORS.textSecondary}
       />
-      <Text style={[styles.settingsLabel, danger && styles.settingsLabelDanger]}>
-        {label}
-      </Text>
+      <View style={styles.settingsLabelContainer}>
+        <Text style={[styles.settingsLabel, danger && styles.settingsLabelDanger]}>
+          {label}
+        </Text>
+        {description && (
+          <Text style={styles.settingsDescription}>{description}</Text>
+        )}
+      </View>
       <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.textMuted} />
     </TouchableOpacity>
   );
@@ -224,6 +276,11 @@ const styles = StyleSheet.create({
   profileFamily: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  adminTapHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
   familyCodeRow: {
     flexDirection: 'row',
@@ -284,10 +341,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
+  settingsLabelContainer: {
+    flex: 1,
+  },
   settingsLabel: {
     fontSize: 16,
-    flex: 1,
     color: '#111',
+  },
+  settingsDescription: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
   },
   settingsLabelDanger: {
     color: '#EF4444',
