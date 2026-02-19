@@ -196,16 +196,6 @@ export default function RegisterScreen() {
               </Link>
             </View>
 
-            {/* Beschreibung */}
-            <View style={styles.descriptionSection}>
-              <Text style={styles.descriptionTitle}>
-                Organisation im Wechselmodell {'\u2013'} ohne Drama.
-              </Text>
-              <Text style={styles.descriptionText}>
-                Lege euren Wechselrhythmus fest, pflege Ausnahmen und behalte \u00dcbergaben, Termine und Ausgaben in einem klaren System im Blick.
-              </Text>
-
-            </View>
           </View>
           </View>
         </ScrollView>
@@ -339,24 +329,5 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontSize: 14,
     fontWeight: '600',
-  },
-  descriptionSection: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  descriptionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  descriptionText: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 18,
   },
 });
