@@ -1,7 +1,6 @@
 {
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
-  "framework": "other",
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
     "api/**/*.js": {
