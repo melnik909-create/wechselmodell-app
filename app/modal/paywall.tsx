@@ -41,6 +41,20 @@ export default function PaywallScreen() {
     router.back();
   };
 
+  const handlePurchase = () => {
+    AppAlert.alert(
+      'Zahlung',
+      'Die Zahlung wird in der nativen App verarbeitet. Bitte verwende die iOS/Android-App für Käufe.'
+    );
+  };
+
+  const handleRestore = () => {
+    AppAlert.alert(
+      'Käufe wiederherstellen',
+      'Die Wiederherstellung wird in der nativen App verarbeitet. Bitte verwende die iOS/Android-App.'
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Header */}
