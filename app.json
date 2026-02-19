@@ -17,7 +17,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.wechselmodellplaner.app",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -49,11 +51,15 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#4F46E5",
-          "sounds": ["./assets/notification-sound.wav"]
+          "color": "#4F46E5"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ba5ec67e-4e84-4f5d-bdc4-2c1b78467e8f"
+      }
+    }
   }
 }
