@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, BackHandler } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,30 +15,46 @@ export default function PaywallScreen() {
   const [selectedPlan, setSelectedPlan] = useState<PlanOption>('lifetime');
   const { data: entitlements } = useEntitlements();
 
-  const handlePurchase = () => {
-    // TODO: Integrate IAP / RevenueCat
-    Alert.alert(
-      'In-App-Kauf',
-      'Die Zahlungsintegration ist noch in Entwicklung. Diese Funktion wird bald verfügbar sein.',
-      [{ text: 'OK' }]
-    );
-  };
+  // If trial is expired, block back navigation (hardware + UI)
+  const isTrialExpired = entitlements && !entitlements.canUseCore && entitlements.plan === 'trial';
 
-  const handleRestore = () => {
-    // TODO: Restore purchases
-    Alert.alert(
-      'Käufe wiederherstellen',
-      'Die Wiederherstellung wird bald implementiert.',
-      [{ text: 'OK' }]
-    );
+  useEffect(() => {
+    if (!isTrialExpired) return;
+
+    // Disable hardware back button during expired trial
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Return true to prevent default back behavior
+      return true;
+    });
+
+    return () => backHandler.remove();
+  }, [isTrialExpired]);
+
+  const handleClose = () => {
+    if (isTrialExpired) {
+      AppAlert.alert(
+        'Trial abgelaufen',
+        'Bitte wähle einen Plan, um die App weiter zu nutzen.'
+      );
+      return;
+    }
+    router.back();
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
-          <MaterialCommunityIcons name="close" size={24} color="#111" />
+        <TouchableOpacity 
+          onPress={handleClose} 
+          style={styles.closeButton}
+          disabled={isTrialExpired}
+        >
+          <MaterialCommunityIcons 
+            name="close" 
+            size={24} 
+            color={isTrialExpired ? '#D1D5DB' : '#111'} 
+          />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Freischalten</Text>
         <View style={{ width: 24 }} />
@@ -45,6 +62,16 @@ export default function PaywallScreen() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+        {/* Trial Expired Warning */}
+        {isTrialExpired && (
+          <View style={styles.expiredWarning}>
+            <MaterialCommunityIcons name="alert-circle" size={24} color="#EF4444" />
+            <Text style={styles.expiredWarningText}>
+              Deine Testversion ist abgelaufen. Bitte wähle einen Plan zum Weitermachen.
+            </Text>
+          </View>
+        )}
+
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.iconCircle}>
@@ -265,6 +292,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#F59E0B',
+  },
+  expiredWarning: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+  },
+  expiredWarningText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#991B1B',
+    lineHeight: 20,
   },
   planCard: {
     backgroundColor: '#fff',
