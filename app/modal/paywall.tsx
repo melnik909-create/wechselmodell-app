@@ -46,13 +46,32 @@ export default function PaywallScreen() {
   };
 
   const handlePurchase = async () => {
-    if (!profile?.id || !profile?.email) {
-      AppAlert.alert('Fehler', 'Bitte stelle sicher, dass du angemeldet bist.');
-      return;
-    }
+    // Allow demo mode without profile for testing
+    const userEmail = profile?.email || 'demo@wechselmodell.test';
+    const userId = profile?.id || 'demo-user-' + Date.now();
 
     try {
-      const result = await processPayment(selectedPlan, profile.email);
+      // For demo mode, show payment demo alert
+      if (!profile?.id) {
+        AppAlert.alert(
+          '💳 Demo-Zahlung',
+          `Plan: ${selectedPlan === 'lifetime' ? 'Core (Lifetime) - €14,99' : selectedPlan === 'cloud_plus_monthly' ? 'Cloud Plus (Monatlich) - €1,99' : 'Cloud Plus (Jährlich) - €19,99'}
+          
+Bitte melde dich an um echte Zahlungen zu tätigen.`,
+          [
+            { text: 'Abbrechen', onPress: () => {}, style: 'cancel' },
+            { 
+              text: 'Demo-Zahlung', 
+              onPress: async () => {
+                AppAlert.alert('Demo-Modus', 'Zahlung in Demo-Version simuliert. Login zum Aktivieren.', [{ text: 'OK' }]);
+              } 
+            }
+          ]
+        );
+        return;
+      }
+
+      const result = await processPayment(selectedPlan, userEmail);
       
       if (result.success) {
         AppAlert.alert(
@@ -67,6 +86,7 @@ export default function PaywallScreen() {
         );
       }
     } catch (error) {
+      console.error('Payment error:', error);
       AppAlert.alert(
         'Fehler',
         'Zahlung konnte nicht verarbeitet werden. Bitte versuche es später erneut.'
