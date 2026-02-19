@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, BackHandler, ActivityIndicator } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { useResponsive } from '@/hooks/useResponsive';
+import { usePayment } from '@/hooks/usePayment';
+import { useAuth } from '@/lib/auth';
 
 type PlanOption = 'lifetime' | 'cloud_plus_monthly' | 'cloud_plus_yearly';
 
@@ -14,6 +16,8 @@ export default function PaywallScreen() {
   const { contentMaxWidth } = useResponsive();
   const [selectedPlan, setSelectedPlan] = useState<PlanOption>('lifetime');
   const { data: entitlements } = useEntitlements();
+  const { processPayment, loading: paymentLoading } = usePayment();
+  const { profile } = useAuth();
 
   // If trial is expired, block back navigation (hardware + UI)
   const isTrialExpired = entitlements && !entitlements.canUseCore && entitlements.plan === 'trial';
@@ -41,11 +45,33 @@ export default function PaywallScreen() {
     router.back();
   };
 
-  const handlePurchase = () => {
-    AppAlert.alert(
-      'Zahlung',
-      'Die Zahlung wird in der nativen App verarbeitet. Bitte verwende die iOS/Android-App für Käufe.'
-    );
+  const handlePurchase = async () => {
+    if (!profile?.id || !profile?.email) {
+      AppAlert.alert('Fehler', 'Bitte stelle sicher, dass du angemeldet bist.');
+      return;
+    }
+
+    try {
+      const result = await processPayment(selectedPlan, profile.email);
+      
+      if (result.success) {
+        AppAlert.alert(
+          '✅ Zahlung erfolgreich',
+          'Dein Plan wurde aktiviert. Danke für deinen Einkauf!',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      } else {
+        AppAlert.alert(
+          'Zahlung fehlgeschlagen',
+          result.message || 'Bitte versuche es später erneut.'
+        );
+      }
+    } catch (error) {
+      AppAlert.alert(
+        'Fehler',
+        'Zahlung konnte nicht verarbeitet werden. Bitte versuche es später erneut.'
+      );
+    }
   };
 
   const handleRestore = () => {
@@ -191,15 +217,20 @@ export default function PaywallScreen() {
 
         {/* Purchase Button */}
         <TouchableOpacity
-          style={styles.purchaseButton}
+          style={[styles.purchaseButton, paymentLoading && styles.purchaseButtonDisabled]}
           onPress={handlePurchase}
+          disabled={paymentLoading}
           activeOpacity={0.7}
         >
-          <Text style={styles.purchaseButtonText}>
-            {selectedPlan === 'lifetime' ? 'Einmalig 14,99 € zahlen' :
-             selectedPlan === 'cloud_plus_monthly' ? 'Für 1,99 €/Monat abonnieren' :
-             'Für 19,99 €/Jahr abonnieren'}
-          </Text>
+          {paymentLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.purchaseButtonText}>
+              {selectedPlan === 'lifetime' ? 'Einmalig 14,99 € zahlen' :
+               selectedPlan === 'cloud_plus_monthly' ? 'Für 1,99 €/Monat abonnieren' :
+               'Für 19,99 €/Jahr abonnieren'}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Restore Button */}
@@ -422,8 +453,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
     marginBottom: 12,
+  },
+  purchaseButtonDisabled: {
+    backgroundColor: '#A5B4FC',
+    opacity: 0.7,
   },
   purchaseButtonText: {
     color: '#fff',
