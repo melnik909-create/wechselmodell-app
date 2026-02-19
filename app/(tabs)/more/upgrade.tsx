@@ -1,16 +1,17 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
 import { useEntitlements } from '@/hooks/useEntitlements';
+import { AppAlert } from '@/lib/alert';
 
 export default function UpgradeScreen() {
   const { data: entitlements, isLoading } = useEntitlements();
 
   const handleRestore = () => {
     // TODO: Restore purchases
-    Alert.alert(
+    AppAlert.alert(
       'Käufe wiederherstellen',
       'Die Wiederherstellung wird bald implementiert.',
       [{ text: 'OK' }]

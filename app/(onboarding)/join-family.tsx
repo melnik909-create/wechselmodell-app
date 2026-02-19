@@ -52,7 +52,7 @@ export default function JoinFamilyScreen() {
       if (existing) {
         AppAlert.alert('Hinweis', 'Du bist bereits Mitglied dieser Familie.');
         await refreshFamily();
-        router.replace('/(tabs)');
+        router.replace('/');
         return;
       }
 
@@ -71,7 +71,7 @@ export default function JoinFamilyScreen() {
       AppAlert.alert(
         'Willkommen!',
         `Du bist der Familie "${family.family_name}" beigetreten.`,
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        [{ text: 'OK', onPress: () => router.replace('/') }]
       );
     } catch (error: any) {
       AppAlert.alert('Fehler', error.message || 'Beitritt fehlgeschlagen.');

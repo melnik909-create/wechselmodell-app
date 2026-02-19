@@ -85,19 +85,43 @@ export default function SelectPatternScreen() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('custody_patterns').insert({
-        family_id: family.id,
-        pattern_type: selectedPattern,
-        start_date: startDateISO,
-        starting_parent: startingParent,
-        is_active: true,
-        handover_day: handoverDay === 7 ? 0 : handoverDay, // DB: 0=Sun, 1=Mon...6=Sat
-      });
+      // Some environments may not have the optional `handover_day` column migrated yet.
+      // Try with it first, then retry without on "column does not exist".
+      const insertWithHandoverDay = async () => {
+        return supabase.from('custody_patterns').insert({
+          family_id: family.id,
+          pattern_type: selectedPattern,
+          start_date: startDateISO,
+          starting_parent: startingParent,
+          is_active: true,
+          handover_day: handoverDay === 7 ? 0 : handoverDay, // DB: 0=Sun, 1=Mon...6=Sat
+        });
+      };
 
-      if (error) throw error;
+      const insertWithoutHandoverDay = async () => {
+        return supabase.from('custody_patterns').insert({
+          family_id: family.id,
+          pattern_type: selectedPattern,
+          start_date: startDateISO,
+          starting_parent: startingParent,
+          is_active: true,
+        });
+      };
+
+      const { error: insertError } = await insertWithHandoverDay();
+
+      if (insertError) {
+        const msg = insertError.message || '';
+        if (msg.includes('handover_day') && (msg.includes('does not exist') || msg.includes('existiert nicht'))) {
+          const { error: retryError } = await insertWithoutHandoverDay();
+          if (retryError) throw retryError;
+        } else {
+          throw insertError;
+        }
+      }
 
       await refreshFamily();
-      router.replace('/(tabs)');
+      router.replace('/(onboarding)/add-children');
     } catch (error: any) {
       AppAlert.alert('Fehler', error.message || 'Muster konnte nicht gespeichert werden.');
     } finally {

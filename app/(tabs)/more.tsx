@@ -6,6 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useChildren } from '@/hooks/useFamily';
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { supabase } from '@/lib/supabase';
+import * as Linking from 'expo-linking';
 import { COLORS } from '@/lib/constants';
 import { useResponsive } from '@/hooks/useResponsive';
 
@@ -13,6 +16,7 @@ export default function MoreScreen() {
   const { profile, family, signOut } = useAuth();
   const { contentMaxWidth } = useResponsive();
   const { data: children } = useChildren();
+  const { data: entitlements } = useEntitlements();
   
   // Admin mode triple-tap detection
   const [adminTaps, setAdminTaps] = useState(0);
@@ -66,6 +70,88 @@ export default function MoreScreen() {
     );
   }
 
+  const cloudPlusDescription = entitlements?.isCloudPlusActive
+    ? entitlements.cloudUntil
+      ? `Aktiv bis ${new Date(entitlements.cloudUntil).toLocaleDateString('de-DE')}`
+      : 'Aktiv'
+    : 'Nicht aktiv';
+
+  async function handleManageCloudPlus() {
+    if (!entitlements) return;
+
+    if (!entitlements.isCloudPlusActive) {
+      router.push('/modal/cloud-plus');
+      return;
+    }
+
+    // Active: open platform-specific management
+    if (Platform.OS === 'android') {
+      await Linking.openURL('https://play.google.com/store/account/subscriptions');
+      return;
+    }
+
+    if (Platform.OS === 'ios') {
+      await Linking.openURL('https://apps.apple.com/account/subscriptions');
+      return;
+    }
+
+    // Web (PWA): Stripe customer portal (if available)
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const returnUrl = origin ? `${origin}/more` : undefined;
+
+      const { data, error } = await supabase.functions.invoke('stripe-portal', {
+        body: { return_url: returnUrl },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.url) {
+        throw new Error('Kein Portal-Link erhalten');
+      }
+
+      window.location.href = data.url;
+    } catch (e: any) {
+      AppAlert.alert(
+        'Abo verwalten',
+        e?.message ||
+          'Abo-Verwaltung ist aktuell nicht verfuegbar. Bitte kontaktiere den Support.'
+      );
+    }
+  }
+
+  async function handleDeleteAccount() {
+    AppAlert.alert(
+      'Konto loeschen',
+      'Willst du dein Konto wirklich dauerhaft loeschen?\n\nDas entfernt deinen Zugang und loescht deine Daten. Das kann nicht rueckgaengig gemacht werden.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Konto loeschen',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.functions.invoke('delete_account', {
+                body: {},
+              });
+              if (error) throw new Error(error.message);
+            } catch (e: any) {
+              AppAlert.alert('Fehler', e?.message || 'Konto konnte nicht geloescht werden.');
+              return;
+            }
+
+            // Try to sign out locally (even if user is already deleted)
+            try {
+              await signOut();
+            } catch {}
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -103,6 +189,12 @@ export default function MoreScreen() {
 
         {/* Children */}
         <Text style={styles.sectionTitle}>Kinder</Text>
+        <SettingsItem
+          icon="account-child-outline"
+          label="Kind hinzufuegen"
+          description="Neues Kind zur Familie hinzufuegen"
+          onPress={() => router.push('/(onboarding)/add-children')}
+        />
         {children?.map((child) => (
           <TouchableOpacity
             key={child.id}
@@ -149,6 +241,18 @@ export default function MoreScreen() {
           onPress={() => router.push('/modal/paywall')}
         />
         <SettingsItem
+          icon="cloud"
+          label="Cloud Plus Abo"
+          description={cloudPlusDescription}
+          onPress={handleManageCloudPlus}
+        />
+        <SettingsItem
+          icon="badge-account"
+          label="Upgrade & Status"
+          description="Dein aktueller Plan und Features"
+          onPress={() => router.push('/more/upgrade')}
+        />
+        <SettingsItem
           icon="file-document-multiple"
           label="Wichtige Dokumente"
           description="z.B. Sorgerechtsbeschluss, Umgangsregelung"
@@ -177,6 +281,13 @@ export default function MoreScreen() {
           label="Meine Daten exportieren"
           description="Alle Daten als Datei herunterladen"
           onPress={() => AppAlert.alert('Datenexport', 'Diese Funktion wird bald verfuegbar sein.')}
+        />
+        <SettingsItem
+          icon="delete-forever"
+          label="Konto loeschen"
+          description="Konto und Daten dauerhaft entfernen"
+          onPress={handleDeleteAccount}
+          danger
         />
         <SettingsItem
           icon="logout"

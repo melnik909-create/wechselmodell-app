@@ -2,20 +2,15 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '@/lib/auth';
 import { useTrialGate } from '@/hooks/useTrialGate';
-
-// DEV_SKIP_AUTH: true = direkt zu Tabs, false = normale Auth
-const DEV_SKIP_AUTH = false;
+import { useChildren, useCustodyPattern } from '@/hooks/useFamily';
 
 export default function Index() {
-  const { session, isLoading, isOnboarded } = useAuth();
+  const { session, isLoading, family } = useAuth();
   const { isBlocked } = useTrialGate();
+  const { data: pattern, isLoading: patternLoading } = useCustodyPattern();
+  const { data: children, isLoading: childrenLoading } = useChildren();
 
-  // Auth komplett überspringen zum Testen
-  if (DEV_SKIP_AUTH) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  if (isLoading) {
+  if (isLoading || (session && family?.id && (patternLoading || childrenLoading))) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#4F46E5" />
@@ -27,12 +22,18 @@ export default function Index() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  if (!isOnboarded) {
+  if (!family?.id) {
     return <Redirect href="/(onboarding)/welcome" />;
   }
 
-  // If trial is expired, the gate hook will auto-open paywall
-  // Still render tabs so user can see them, but paywall overlays
+  if (!pattern) {
+    return <Redirect href="/(onboarding)/select-pattern" />;
+  }
+
+  if (!children || children.length === 0) {
+    return <Redirect href="/(onboarding)/add-children" />;
+  }
+
   return <Redirect href="/(tabs)" />;
 }
 

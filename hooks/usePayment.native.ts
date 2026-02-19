@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useStripe } from '@stripe/stripe-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { AppAlert } from '@/lib/alert';
 
 interface PaymentResult {
   success: boolean;
@@ -11,120 +10,113 @@ interface PaymentResult {
   error?: string;
 }
 
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
 /**
- * Native-only Payment Hook using @stripe/stripe-react-native
- * For Web, use usePayment.web.ts
+ * Native Payment Hook using @stripe/stripe-react-native Payment Sheet
+ * Calls Supabase Edge Function to create PaymentIntent,
+ * then presents the Stripe Payment Sheet.
  */
 export const usePayment = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [initialized] = useState(true);
 
-  // Initialize payment sheet on mount
-  useEffect(() => {
-    initializePaymentSheet();
-  }, []);
-
-  const initializePaymentSheet = async () => {
-    if (initialized || !profile?.id) return;
-
-    try {
-      setLoading(true);
-
-      // Initialize Stripe
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: 'Wechselmodell',
-        billingDetailsCollectionConfiguration: {
-          address: 'automatic',
-          phone: 'automatic',
-          email: 'always',
-        },
-      });
-
-      if (initError) {
-        console.error('Payment sheet init error:', initError);
-        return;
-      }
-
-      setInitialized(true);
-    } catch (error) {
-      console.error('Failed to initialize payment:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Process a payment for a specific plan
-   * @param planType - 'lifetime' | 'cloud_plus_monthly' | 'cloud_plus_yearly'
-   * @param userEmail - User's email for receipt
-   * @returns PaymentResult
-   */
   const processPayment = async (
     planType: 'lifetime' | 'cloud_plus_monthly' | 'cloud_plus_yearly',
-    userEmail: string
+    _userEmail: string
   ): Promise<PaymentResult> => {
-    if (!initialized || !profile?.id) {
+    if (!profile?.id) {
       return {
         success: false,
-        message: 'Payment system not initialized',
-        error: 'System error',
+        message: 'Bitte melde dich an um zu bezahlen.',
+        error: 'Not authenticated',
       };
     }
 
     try {
       setLoading(true);
 
-      // Step 1: Create payment intent via Supabase RPC
-      const { data: paymentData, error: rpcError } = await supabase.rpc(
-        'create_payment_intent',
+      // 1. Get session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Keine aktive Sitzung');
+      }
+
+      // 2. Call Edge Function to create PaymentIntent
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/stripe-checkout`,
         {
-          plan_type: planType,
-          user_email: userEmail,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY || '',
+          },
+          body: JSON.stringify({
+            plan_type: planType,
+            mode: 'native',
+          }),
         }
       );
 
-      if (rpcError) {
-        throw new Error(`Payment setup failed: ${rpcError.message}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'PaymentIntent konnte nicht erstellt werden');
       }
 
-      // Step 2: Call Stripe payment sheet
+      // 3. Initialize Payment Sheet with client secret
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'WechselPlaner',
+        paymentIntentClientSecret: data.clientSecret,
+        defaultBillingDetails: {
+          email: user?.email || undefined,
+        },
+      });
+
+      if (initError) {
+        throw new Error(`Payment Sheet Fehler: ${initError.message}`);
+      }
+
+      // 4. Present Payment Sheet
       const { error: paymentError } = await presentPaymentSheet();
 
       if (paymentError?.code === 'Canceled') {
         return {
           success: false,
-          message: 'Payment cancelled',
+          message: 'Zahlung abgebrochen',
           error: paymentError.message,
         };
       }
 
       if (paymentError) {
-        throw new Error(`Payment failed: ${paymentError.message}`);
+        throw new Error(`Zahlung fehlgeschlagen: ${paymentError.message}`);
       }
 
-      // Step 3: Update plan in database after successful payment
-      const { data: updateResult, error: updateError } = await supabase.rpc(
+      // 5. Update plan in database
+      const { error: updateError } = await supabase.rpc(
         'update_plan_after_payment',
         {
           user_id: profile.id,
           plan_type: planType,
-          stripe_payment_intent_id: paymentData?.stripe_payment_intent_id || 'manual_' + Date.now(),
+          stripe_payment_intent_id: data.paymentIntentId,
         }
       );
 
       if (updateError) {
-        throw new Error(`Failed to update plan: ${updateError.message}`);
+        throw new Error(`Plan-Update fehlgeschlagen: ${updateError.message}`);
       }
 
       return {
         success: true,
-        message: 'Payment successful! Your plan has been activated.',
-        planType: planType,
+        message: 'Zahlung erfolgreich! Dein Plan wurde aktiviert.',
+        planType,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Payment processing failed';
+      const errorMessage = error instanceof Error ? error.message : 'Zahlung fehlgeschlagen';
       console.error('Payment error:', errorMessage);
 
       return {

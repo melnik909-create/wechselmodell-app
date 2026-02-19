@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wechselplaner-v1';
+const CACHE_NAME = 'wechselplaner-v3';
 
 // Assets to cache on install
 const PRECACHE_URLS = [
@@ -25,8 +25,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first with cache fallback
+// Fetch: rewrite @-scoped font paths + network-first cache
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Rewrite @expo font paths to /fonts/ directory
+  if (url.pathname.includes('@expo') && url.pathname.endsWith('.ttf')) {
+    const fontFilename = url.pathname.split('/').pop();
+    const newUrl = new URL('/fonts/' + fontFilename, url.origin);
+    event.respondWith(fetch(newUrl));
+    return;
+  }
+
   // Skip non-GET and Supabase API requests
   if (event.request.method !== 'GET' || event.request.url.includes('supabase.co')) {
     return;

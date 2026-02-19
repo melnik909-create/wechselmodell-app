@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { registerForPushNotifications } from './notifications';
 import { EncryptionService } from './encryption';
@@ -36,6 +38,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
     isOnboarded: false,
   });
+
+  function clearAuthState() {
+    setState({
+      session: null,
+      user: null,
+      profile: null,
+      family: null,
+      familyMember: null,
+      isLoading: false,
+      isOnboarded: false,
+    });
+  }
 
   useEffect(() => {
     // Get initial session
@@ -75,18 +89,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function loadUserData(userId: string) {
     try {
       // Load profile
-      const { data: profile } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
+      let profile = profileData;
+
+      // If the user was deleted server-side but the client still has a persisted session,
+      // Supabase may return an error or no rows. In that case, force logout on web so the user sees login.
+      if (profileError) {
+        // If profile row is missing, try to recreate once (can happen if DB triggers weren't deployed).
+        if (profileError.code === 'PGRST116') {
+          const { data: { user } } = await supabase.auth.getUser();
+          const displayName =
+            (user?.user_metadata as any)?.display_name ||
+            (user?.email ? user.email.split('@')[0] : 'User');
+
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({ id: userId, display_name: displayName });
+
+          if (!insertError) {
+            const retry = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .single();
+
+            if (retry.data) {
+              profile = retry.data;
+            } else {
+              await supabase.auth.signOut().catch(() => {});
+              clearAuthState();
+              router.replace('/(auth)/login');
+              return;
+            }
+          } else {
+            await supabase.auth.signOut().catch(() => {});
+            clearAuthState();
+            router.replace('/(auth)/login');
+            return;
+          }
+        } else {
+          await supabase.auth.signOut().catch(() => {});
+          clearAuthState();
+          router.replace('/(auth)/login');
+          return;
+        }
+      }
+
       // Load family membership
-      const { data: membership } = await supabase
+      const { data: membership, error: membershipError } = await supabase
         .from('family_members')
         .select('*, families(*)')
         .eq('user_id', userId)
         .single();
+
+      // No membership is fine (user not onboarded yet). Other errors should log out to avoid a "ghost session".
+      if (membershipError && membershipError.code !== 'PGRST116') {
+        await supabase.auth.signOut().catch(() => {});
+        clearAuthState();
+        router.replace('/(auth)/login');
+        return;
+      }
 
       const family = membership?.families as Family | null;
       const familyMember = membership ? {
@@ -113,15 +180,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to register for push notifications:', error);
       });
     } catch {
-      setState(prev => ({ ...prev, isLoading: false }));
+      // If something goes wrong while a session exists, don't keep the app in a half-authenticated state.
+      await supabase.auth.signOut().catch(() => {});
+      clearAuthState();
+      router.replace('/(auth)/login');
     }
   }
 
   async function signUp(email: string, password: string, displayName: string) {
+    const siteUrl = (process.env.EXPO_PUBLIC_SITE_URL || '').trim();
+    const webBaseUrl =
+      siteUrl ||
+      (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '');
+
+    const emailRedirectTo =
+      Platform.OS === 'web'
+        ? (webBaseUrl ? `${webBaseUrl}/login` : undefined)
+        : Linking.createURL('login');
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: displayName },
+        ...(emailRedirectTo ? { emailRedirectTo } : {}),
+      },
     });
     if (error) throw error;
 

@@ -1,15 +1,16 @@
 {
-  "buildCommand": "npm install && echo 'Build skipped for Expo app'",
-  "outputDirectory": "public",
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist",
   "framework": "other",
   "installCommand": "npm install --legacy-peer-deps",
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "rewrites": [
     {
-      "source": "/app",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/app/:path*",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]

@@ -7,12 +7,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { AppAlert } from '@/lib/alert';
 
 interface VIPUser {
   id: string;
@@ -30,7 +30,7 @@ export default function AdminVIPModal() {
 
   async function handleSearch() {
     if (!email.trim()) {
-      Alert.alert('Fehler', 'Bitte E-Mail eingeben.');
+      AppAlert.alert('Fehler', 'Bitte E-Mail eingeben.');
       return;
     }
 
@@ -42,7 +42,7 @@ export default function AdminVIPModal() {
       });
 
       if (error) {
-        Alert.alert('Fehler', error.message || 'Suche fehlgeschlagen.');
+        AppAlert.alert('Fehler', error.message || 'Suche fehlgeschlagen.');
         setUser(null);
         setSearching(false);
         return;
@@ -51,7 +51,7 @@ export default function AdminVIPModal() {
       const userData = Array.isArray(data) ? data[0] : data;
 
       if (!userData) {
-        Alert.alert('Nicht gefunden', 'Kein User mit dieser E-Mail gefunden.');
+        AppAlert.alert('Nicht gefunden', 'Kein User mit dieser E-Mail gefunden.');
         setUser(null);
         setSearching(false);
         return;
@@ -59,7 +59,7 @@ export default function AdminVIPModal() {
 
       setUser(userData as VIPUser);
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Suche fehlgeschlagen.');
+      AppAlert.alert('Fehler', error.message || 'Suche fehlgeschlagen.');
     } finally {
       setSearching(false);
     }
@@ -75,18 +75,18 @@ export default function AdminVIPModal() {
       });
 
       if (error) {
-        Alert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');
+        AppAlert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');
         return;
       }
 
       const result = Array.isArray(data) ? data[0] : data;
 
       if (!result?.success) {
-        Alert.alert('Fehler', result?.message || 'VIP-Zugang vergeben fehlgeschlagen.');
+        AppAlert.alert('Fehler', result?.message || 'VIP-Zugang vergeben fehlgeschlagen.');
         return;
       }
 
-      Alert.alert('✅ Erfolg', `VIP-Zugang vergeben für ${user.display_name}`);
+      AppAlert.alert('✅ Erfolg', `VIP-Zugang vergeben für ${user.display_name}`);
       // Refresh user data
       setUser({
         ...user,
@@ -94,7 +94,7 @@ export default function AdminVIPModal() {
         cloud_until: result.cloud_until || '2099-12-31',
       });
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');
+      AppAlert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export default function AdminVIPModal() {
   async function handleRevokeVIP() {
     if (!user) return;
 
-    Alert.alert(
+    AppAlert.alert(
       'Bestätigung',
       `VIP-Status für ${user.display_name} wirklich zurücksetzen?`,
       [
@@ -120,14 +120,14 @@ export default function AdminVIPModal() {
 
               if (error) throw error;
 
-              Alert.alert('✅ Erfolg', `VIP-Status zurückgesetzt für ${user.display_name}`);
+              AppAlert.alert('✅ Erfolg', `VIP-Status zurückgesetzt für ${user.display_name}`);
               setUser({
                 ...user,
                 plan: 'trial',
                 cloud_until: null,
               });
             } catch (error: any) {
-              Alert.alert('Fehler', error.message || 'Zurücksetzen fehlgeschlagen.');
+              AppAlert.alert('Fehler', error.message || 'Zurücksetzen fehlgeschlagen.');
             } finally {
               setLoading(false);
             }

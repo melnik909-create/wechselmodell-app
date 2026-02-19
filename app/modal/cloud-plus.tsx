@@ -1,21 +1,45 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
 import { useResponsive } from '@/hooks/useResponsive';
+import { usePayment } from '@/hooks/usePayment';
+import { useAuth } from '@/lib/auth';
+
+type CloudPlan = 'cloud_plus_monthly' | 'cloud_plus_yearly';
 
 export default function CloudPlusScreen() {
   const { contentMaxWidth } = useResponsive();
+  const { processPayment, loading: paymentLoading } = usePayment();
+  const { profile, user } = useAuth();
+  const [selectedPlan, setSelectedPlan] = useState<CloudPlan>('cloud_plus_yearly');
 
-  const handleSubscribe = () => {
-    // TODO: Integrate IAP / RevenueCat
-    AppAlert.alert(
-      'Cloud Plus',
-      'Die Zahlungsintegration ist noch in Entwicklung. Diese Funktion wird bald verfügbar sein.',
-      [{ text: 'OK' }]
-    );
+  const handleSubscribe = async () => {
+    if (!profile?.id) {
+      AppAlert.alert('Anmeldung erforderlich', 'Bitte melde dich an um Cloud Plus zu aktivieren.');
+      return;
+    }
+
+    const userEmail = user?.email || '';
+
+    try {
+      const result = await processPayment(selectedPlan, userEmail);
+
+      if (result.success) {
+        AppAlert.alert(
+          'Cloud Plus aktiviert!',
+          'Dein Cloud Plus Abo wurde erfolgreich aktiviert.',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+        );
+      } else if (result.error !== 'Zahlung abgebrochen') {
+        AppAlert.alert('Fehler', result.message || 'Zahlung fehlgeschlagen.');
+      }
+    } catch (error) {
+      AppAlert.alert('Fehler', 'Zahlung konnte nicht verarbeitet werden.');
+    }
   };
 
   return (
@@ -98,28 +122,43 @@ export default function CloudPlusScreen() {
 
         {/* Pricing */}
         <View style={styles.pricingSection}>
-          <View style={styles.pricingCard}>
+          <TouchableOpacity
+            style={[styles.pricingCard, selectedPlan === 'cloud_plus_monthly' && styles.pricingCardSelected]}
+            onPress={() => setSelectedPlan('cloud_plus_monthly')}
+            activeOpacity={0.7}
+          >
             <Text style={styles.pricingTitle}>Monatlich</Text>
-            <Text style={styles.pricingPrice}>2,49 € / Monat</Text>
+            <Text style={styles.pricingPrice}>1,99 € / Monat</Text>
             <Text style={styles.pricingDescription}>Jederzeit kündbar</Text>
-          </View>
-          <View style={[styles.pricingCard, styles.pricingCardHighlight]}>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.pricingCard, styles.pricingCardHighlight, selectedPlan === 'cloud_plus_yearly' && styles.pricingCardSelected]}
+            onPress={() => setSelectedPlan('cloud_plus_yearly')}
+            activeOpacity={0.7}
+          >
             <View style={styles.savingsBadge}>
               <Text style={styles.savingsBadgeText}>2 Monate gratis</Text>
             </View>
             <Text style={styles.pricingTitle}>Jährlich</Text>
-            <Text style={styles.pricingPrice}>24,99 € / Jahr</Text>
-            <Text style={styles.pricingDescription}>Entspricht 2,08 € / Monat</Text>
-          </View>
+            <Text style={styles.pricingPrice}>19,99 € / Jahr</Text>
+            <Text style={styles.pricingDescription}>Entspricht 1,67 € / Monat</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Subscribe Button */}
         <TouchableOpacity
-          style={styles.subscribeButton}
+          style={[styles.subscribeButton, paymentLoading && styles.subscribeButtonDisabled]}
           onPress={handleSubscribe}
+          disabled={paymentLoading}
           activeOpacity={0.7}
         >
-          <Text style={styles.subscribeButtonText}>Cloud Plus aktivieren</Text>
+          {paymentLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.subscribeButtonText}>
+              {selectedPlan === 'cloud_plus_monthly' ? 'Für 1,99 €/Monat abonnieren' : 'Für 19,99 €/Jahr abonnieren'}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Info */}
@@ -250,6 +289,10 @@ const styles = StyleSheet.create({
     borderColor: '#F59E0B',
     backgroundColor: '#FFFBEB',
   },
+  pricingCardSelected: {
+    borderColor: '#4F46E5',
+    borderWidth: 3,
+  },
   savingsBadge: {
     position: 'absolute',
     top: -10,
@@ -285,6 +328,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 16,
+  },
+  subscribeButtonDisabled: {
+    opacity: 0.7,
   },
   subscribeButtonText: {
     color: '#fff',

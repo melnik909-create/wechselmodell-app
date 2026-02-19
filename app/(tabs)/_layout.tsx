@@ -1,8 +1,31 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
+import { useEffect } from 'react';
+import { useAuth } from '@/lib/auth';
+import { useChildren, useCustodyPattern } from '@/hooks/useFamily';
 
 export default function TabLayout() {
+  const { family, isLoading: authLoading } = useAuth();
+  const { data: pattern, isLoading: patternLoading } = useCustodyPattern();
+  const { data: children, isLoading: childrenLoading } = useChildren();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!family?.id) return;
+    if (patternLoading || childrenLoading) return;
+
+    if (!pattern) {
+      router.replace('/(onboarding)/select-pattern');
+      return;
+    }
+
+    if (!children || children.length === 0) {
+      router.replace('/(onboarding)/add-children');
+      return;
+    }
+  }, [authLoading, family?.id, patternLoading, childrenLoading, pattern, children?.length]);
+
   return (
     <Tabs
       screenOptions={{

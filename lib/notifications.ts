@@ -1,21 +1,30 @@
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-// Configure notification handling behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Lazy-load native-only modules to avoid crashes on web
+let Notifications: any = null;
+let Device: any = null;
+
+if (Platform.OS !== 'web') {
+  Notifications = require('expo-notifications');
+  Device = require('expo-device');
+
+  // Configure notification handling behavior (native only)
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 /**
  * Request notification permissions from the user
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
+  if (Platform.OS === 'web' || !Notifications || !Device) return false;
+
   if (!Device.isDevice) {
     console.log('Push notifications only work on physical devices');
     return false;
@@ -41,6 +50,8 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  * Get the Expo push token for this device
  */
 export async function getExpoPushToken(): Promise<string | null> {
+  if (Platform.OS === 'web' || !Notifications || !Device) return null;
+
   try {
     if (!Device.isDevice) {
       return null;
@@ -92,6 +103,8 @@ export async function savePushToken(userId: string, token: string): Promise<void
  * Register for push notifications and save the token
  */
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+
   try {
     const token = await getExpoPushToken();
     if (token) {
@@ -107,8 +120,6 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 
 /**
  * Send a push notification to a specific user
- * Note: This is a client-side helper. In production, you should use a backend service
- * or Supabase Edge Function to send notifications securely.
  */
 export async function sendPushNotification(
   pushToken: string,
@@ -266,17 +277,15 @@ export async function notifySettlement(
 /**
  * Add notification listener for when app is in foreground
  */
-export function addNotificationReceivedListener(
-  callback: (notification: Notifications.Notification) => void
-) {
+export function addNotificationReceivedListener(callback: (notification: any) => void) {
+  if (!Notifications) return { remove: () => {} };
   return Notifications.addNotificationReceivedListener(callback);
 }
 
 /**
  * Add notification listener for when user taps on notification
  */
-export function addNotificationResponseReceivedListener(
-  callback: (response: Notifications.NotificationResponse) => void
-) {
+export function addNotificationResponseReceivedListener(callback: (response: any) => void) {
+  if (!Notifications) return { remove: () => {} };
   return Notifications.addNotificationResponseReceivedListener(callback);
 }

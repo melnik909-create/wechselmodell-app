@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/hooks/useResponsive';
 
@@ -11,7 +11,8 @@ export default function WelcomeScreen() {
   // If user is already onboarded, redirect to tabs (fixes PWA issue)
   useEffect(() => {
     if (isOnboarded) {
-      router.replace('/(tabs)');
+      // Let app/index.tsx decide the correct next step (pattern, children, etc.)
+      router.replace('/');
     }
   }, [isOnboarded]);
 
@@ -23,19 +24,17 @@ export default function WelcomeScreen() {
           Organisiert gemeinsam den Alltag eurer Kinder
         </Text>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push('/(onboarding)/create-family')}
-        >
-          <Text style={styles.buttonText}>Familie erstellen</Text>
-        </TouchableOpacity>
+        <Link href="/(onboarding)/create-family" asChild>
+          <TouchableOpacity style={styles.button}>
+            <Text style={styles.buttonText}>Familie erstellen</Text>
+          </TouchableOpacity>
+        </Link>
 
-        <TouchableOpacity
-          style={[styles.button, styles.buttonSecondary]}
-          onPress={() => router.push('/(onboarding)/join-family')}
-        >
-          <Text style={styles.buttonTextSecondary}>Familie beitreten</Text>
-        </TouchableOpacity>
+        <Link href="/(onboarding)/join-family" asChild>
+          <TouchableOpacity style={[styles.button, styles.buttonSecondary]}>
+            <Text style={styles.buttonTextSecondary}>Familie beitreten</Text>
+          </TouchableOpacity>
+        </Link>
       </View>
     </View>
   );

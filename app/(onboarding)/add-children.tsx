@@ -88,7 +88,7 @@ export default function AddChildrenScreen() {
       const { error } = await supabase.from('children').insert(inserts);
       if (error) throw error;
 
-      router.push('/(onboarding)/select-pattern');
+      router.replace('/(tabs)');
     } catch (error: any) {
       AppAlert.alert('Fehler', error.message || 'Kinder konnten nicht gespeichert werden.');
     } finally {

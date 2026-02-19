@@ -7,11 +7,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { Link, router } from 'expo-router';
+import { AppAlert } from '@/lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
@@ -28,46 +28,46 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     if (!name.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Fehler', 'Bitte alle Felder ausfüllen.');
+      AppAlert.alert('Fehler', 'Bitte alle Felder ausfüllen.');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Fehler', 'Die Passwörter stimmen nicht überein.');
+      AppAlert.alert('Fehler', 'Die Passwörter stimmen nicht überein.');
       return;
     }
 
     // Sichere Passwort-Validierung
     if (password.length < 8) {
-      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens 8 Zeichen lang sein.');
+      AppAlert.alert('Schwaches Passwort', 'Das Passwort muss mindestens 8 Zeichen lang sein.');
       return;
     }
     if (!/[A-Z]/.test(password)) {
-      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens einen Großbuchstaben enthalten.');
+      AppAlert.alert('Schwaches Passwort', 'Das Passwort muss mindestens einen Großbuchstaben enthalten.');
       return;
     }
     if (!/[a-z]/.test(password)) {
-      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens einen Kleinbuchstaben enthalten.');
+      AppAlert.alert('Schwaches Passwort', 'Das Passwort muss mindestens einen Kleinbuchstaben enthalten.');
       return;
     }
     if (!/[0-9]/.test(password)) {
-      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens eine Zahl enthalten.');
+      AppAlert.alert('Schwaches Passwort', 'Das Passwort muss mindestens eine Zahl enthalten.');
       return;
     }
     if (!/[^A-Za-z0-9]/.test(password)) {
-      Alert.alert('Schwaches Passwort', 'Das Passwort muss mindestens ein Sonderzeichen enthalten (!@#$%^&* etc.).');
+      AppAlert.alert('Schwaches Passwort', 'Das Passwort muss mindestens ein Sonderzeichen enthalten (!@#$%^&* etc.).');
       return;
     }
 
     setLoading(true);
     try {
       await signUp(email.trim(), password, name.trim());
-      Alert.alert(
+      AppAlert.alert(
         'Registrierung erfolgreich',
         'Bitte bestaetigen Sie Ihre E-Mail-Adresse.',
         [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
       );
     } catch (error: any) {
-      Alert.alert('Registrierung fehlgeschlagen', error.message || 'Bitte versuche es erneut.');
+      AppAlert.alert('Registrierung fehlgeschlagen', error.message || 'Bitte versuche es erneut.');
     } finally {
       setLoading(false);
     }

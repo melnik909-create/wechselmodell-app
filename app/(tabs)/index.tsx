@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useCustodyPattern, useCustodyExceptions, useFamilyMembers } from '@/hooks/useFamily';
+import { useUnreadActivity } from '@/hooks/useUnreadActivity';
 import { getCustodyForDate, buildExceptionMap } from '@/lib/custody-engine';
 import { getNext7Days, formatShortDay, formatDayMonth, formatFullDate } from '@/lib/date-utils';
 import { PARENT_COLORS, COLORS } from '@/lib/constants';
@@ -16,6 +17,7 @@ export default function HomeScreen() {
   const { data: pattern } = useCustodyPattern();
   const { data: exceptions } = useCustodyExceptions();
   const { data: members } = useFamilyMembers();
+  const { summary } = useUnreadActivity();
 
   const today = new Date();
   const next7Days = getNext7Days(today);
@@ -34,14 +36,43 @@ export default function HomeScreen() {
     if (member?.profile?.display_name) return member.profile.display_name;
     // Fallback
     return parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B';
-  };
+    };
 
-  return (
+  const unreadLabel = (() => {
+    const parts: string[] = [];
+    if (summary.events > 0) parts.push(`${summary.events} Termin${summary.events === 1 ? '' : 'e'}`);
+    if (summary.expenses > 0) parts.push(`${summary.expenses} Ausgabe${summary.expenses === 1 ? '' : 'n'}`);
+    if (summary.exceptionsProposed > 0) parts.push(`${summary.exceptionsProposed} Ausnahme${summary.exceptionsProposed === 1 ? '' : 'n'}`);
+    if (summary.exceptionsResponded > 0) parts.push(`${summary.exceptionsResponded} Antwort${summary.exceptionsResponded === 1 ? '' : 'en'}`);
+    if (summary.schoolTasks > 0) parts.push(`${summary.schoolTasks} Aufgabe${summary.schoolTasks === 1 ? '' : 'n'}`);
+    return parts.join(' • ');
+  })();
+
+    return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Greeting */}
         <Text style={styles.greeting}>Hallo, {profile?.display_name ?? 'dort'} 👋</Text>
+
+        {/* In-app activity notifications */}
+        {summary.total > 0 && (
+          <TouchableOpacity
+            style={styles.notificationBar}
+            activeOpacity={0.8}
+            onPress={() => router.push('/modal/activity')}
+          >
+            <View style={styles.notificationBarLeft}>
+              <View style={styles.notificationDot} />
+              <MaterialCommunityIcons name="bell" size={18} color="#991B1B" />
+              <Text style={styles.notificationTitle}>Neu</Text>
+            </View>
+            <Text style={styles.notificationText} numberOfLines={1}>
+              {unreadLabel || `${summary.total} Update${summary.total === 1 ? '' : 's'}`}
+            </Text>
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#991B1B" />
+          </TouchableOpacity>
+        )}
 
         {/* Today Card */}
         {todayParent && (
@@ -202,6 +233,41 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111',
     marginBottom: 16,
+  },
+  notificationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  notificationBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notificationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  notificationTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  notificationText: {
+    flex: 1,
+    marginLeft: 10,
+    marginRight: 10,
+    fontSize: 13,
+    color: '#991B1B',
   },
   card: {
     backgroundColor: '#fff',

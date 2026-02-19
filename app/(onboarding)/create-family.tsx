@@ -88,9 +88,9 @@ export default function CreateFamilyScreen() {
           <View style={styles.bottomButton}>
             <TouchableOpacity
               style={styles.button}
-              onPress={() => router.push('/(onboarding)/add-children')}
+              onPress={() => router.push('/(onboarding)/select-pattern')}
             >
-              <Text style={styles.buttonText}>Weiter: Kinder hinzufuegen</Text>
+              <Text style={styles.buttonText}>Weiter: Betreuungsmodell</Text>
             </TouchableOpacity>
           </View>
         </View>

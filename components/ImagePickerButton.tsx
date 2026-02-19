@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Alert,
   ActionSheetIOS,
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { pickImage, takePhoto } from '@/lib/image-upload';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { AppAlert } from '@/lib/alert';
 
 interface ImagePickerButtonProps {
   imageUri: string | null;
@@ -38,7 +38,7 @@ export default function ImagePickerButton({
         onImageSelected(asset.uri, asset);
       }
     } catch (error: any) {
-      Alert.alert('Fehler', error.message);
+      AppAlert.alert('Fehler', error.message);
     } finally {
       setIsUploading(false);
     }
@@ -52,7 +52,7 @@ export default function ImagePickerButton({
         onImageSelected(asset.uri, asset);
       }
     } catch (error: any) {
-      Alert.alert('Fehler', error.message);
+      AppAlert.alert('Fehler', error.message);
     } finally {
       setIsUploading(false);
     }
@@ -74,7 +74,7 @@ export default function ImagePickerButton({
         }
       );
     } else {
-      Alert.alert('Foto hinzufügen', 'Wähle eine Option', [
+      AppAlert.alert('Foto hinzufügen', 'Wähle eine Option', [
         { text: 'Abbrechen', style: 'cancel' },
         { text: 'Foto aufnehmen', onPress: handleTakePhoto },
         { text: 'Aus Galerie wählen', onPress: handlePickImage },
@@ -83,7 +83,7 @@ export default function ImagePickerButton({
   }
 
   function handleRemoveImage() {
-    Alert.alert('Foto entfernen', 'Möchtest du das Foto wirklich entfernen?', [
+    AppAlert.alert('Foto entfernen', 'Möchtest du das Foto wirklich entfernen?', [
       { text: 'Abbrechen', style: 'cancel' },
       {
         text: 'Entfernen',
