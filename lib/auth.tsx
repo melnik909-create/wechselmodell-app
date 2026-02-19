@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 import { supabase } from './supabase';
 import { registerForPushNotifications } from './notifications';
 import { EncryptionService } from './encryption';
@@ -142,6 +143,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear encryption key from memory for security
     EncryptionService.clearMasterKey();
     await supabase.auth.signOut();
+    // Navigate to login screen
+    router.replace('/(auth)/login');
   }
 
   async function refreshProfile() {

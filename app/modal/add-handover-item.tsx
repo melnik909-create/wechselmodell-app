@@ -5,11 +5,11 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -74,12 +74,12 @@ export default function AddHandoverItemModal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['handover_items', params.handoverId] });
-      Alert.alert('Erfolg', 'Item wurde hinzugefügt.', [
+      AppAlert.alert('Erfolg', 'Item wurde hinzugefügt.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     },
     onError: (error: any) => {
-      Alert.alert('Fehler', error.message || 'Item konnte nicht hinzugefügt werden.');
+      AppAlert.alert('Fehler', error.message || 'Item konnte nicht hinzugefügt werden.');
     },
   });
 

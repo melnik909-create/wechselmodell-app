@@ -35,7 +35,13 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "WechselPlaner",
+      "shortName": "WechselPlaner",
+      "themeColor": "#4F46E5",
+      "backgroundColor": "#ffffff",
+      "description": "Betreuungsplaner für getrennte Eltern",
+      "lang": "de"
     },
     "plugins": [
       "expo-router",

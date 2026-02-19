@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, Pressable } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -88,10 +89,10 @@ function ExpenseCard({
         <View style={styles.expenseInfo}>
           <View style={styles.descriptionRow}>
             <Text style={styles.expenseDescription}>{expense.description}</Text>
-            {expense.is_memo && expense.split_type === '50_50' && (
-              <View style={styles.memoBadge}>
-                <MaterialCommunityIcons name="note-text" size={10} color="#F59E0B" />
-                <Text style={styles.memoBadgeText}>Memo</Text>
+            {expense.split_type === '50_50' && (
+              <View style={styles.settledBadge}>
+                <MaterialCommunityIcons name="check-circle" size={10} color="#10B981" />
+                <Text style={styles.settledBadgeText}>50:50</Text>
               </View>
             )}
           </View>
@@ -146,7 +147,7 @@ export default function ExpensesScreen() {
   };
 
   const handleSettleExpenses = () => {
-    Alert.alert(
+    AppAlert.alert(
       'Ihr seid Quitt!',
       'Alle bisherigen Kauf-Notizen werden gelöscht. Käufe werden bei beiden Elternteilen neu gezählt. Der andere Elternteil wird benachrichtigt.\n\nMöchtest du fortfahren?',
       [
@@ -160,12 +161,12 @@ export default function ExpensesScreen() {
           onPress: async () => {
             try {
               await settleExpensesMutation.mutateAsync();
-              Alert.alert(
+              AppAlert.alert(
                 'Erfolgreich!',
                 'Alle Ausgaben wurden gelöscht. Ihr seid Quitt!'
               );
             } catch (error: any) {
-              Alert.alert(
+              AppAlert.alert(
                 'Fehler',
                 error.message || 'Die Ausgaben konnten nicht gelöscht werden.'
               );
@@ -245,7 +246,7 @@ export default function ExpensesScreen() {
             <TouchableOpacity
               style={styles.mandatorySettlementHelpButton}
               onPress={() =>
-                Alert.alert(
+                AppAlert.alert(
                   'Warum?',
                   'Um die Datenmenge gering zu halten und Speicherkosten zu minimieren, wird alle 2 Monate eine Abrechnung fällig. Belege werden dann gelöscht und ihr könnt neu starten.'
                 )
@@ -275,7 +276,7 @@ export default function ExpensesScreen() {
           style={[styles.addButton, isSettlementDue && styles.addButtonDisabled]}
           onPress={() => {
             if (isSettlementDue) {
-              Alert.alert(
+              AppAlert.alert(
                 'Abrechnung fällig',
                 'Bitte erst abrechnen, bevor neue Ausgaben erfasst werden können.'
               );
@@ -528,21 +529,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111',
   },
-  memoBadge: {
+  settledBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#D1FAE5',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#FCD34D',
+    borderColor: '#6EE7B7',
   },
-  memoBadgeText: {
+  settledBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#F59E0B',
+    color: '#10B981',
   },
   expenseDetails: {
     fontSize: 12,

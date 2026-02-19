@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,7 +29,7 @@ export default function EventsOverviewScreen() {
   const monthKeys = eventsByMonth ? Object.keys(eventsByMonth).sort().reverse() : [];
 
   function handleDeleteEvent(eventId: string, title: string) {
-    Alert.alert(
+    AppAlert.alert(
       'Termin löschen',
       `Möchtest du "${title}" wirklich löschen?`,
       [

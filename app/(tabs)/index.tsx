@@ -132,6 +132,12 @@ export default function HomeScreen() {
             color="#EC4899"
             onPress={() => router.push('/modal/school')}
           />
+          <QuickAction
+            icon="file-document"
+            label="Dokumente"
+            color="#6366F1"
+            onPress={() => router.push('/modal/documents')}
+          />
         </View>
 
         {/* No pattern message */}
@@ -282,9 +288,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
     marginBottom: 24,
+    justifyContent: 'flex-start',
   },
   quickActionButton: {
-    flex: 1,
+    width: '22%',
     alignItems: 'center',
   },
   quickActionIcon: {

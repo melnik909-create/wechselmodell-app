@@ -50,8 +50,8 @@ export function useAddExpense() {
         .single();
       if (error) throw error;
 
-      // Send notification to other parent (skip if memo)
-      if (!expense.is_memo) {
+      // Send notification to other parent (skip for 50/50 - already settled)
+      if (expense.split_type !== '50_50') {
         const { data: members } = await supabase
           .from('family_members')
           .select('user_id')
@@ -92,9 +92,9 @@ export function calculateBalance(
   expenses: Expense[],
   parentAId: string,
 ): BalanceSummary {
-  // Filter out 50/50 memo expenses (already settled, not counted in balance)
+  // Filter out 50/50 expenses (already settled, not counted in balance)
   const calculableExpenses = expenses.filter(
-    (e) => !(e.split_type === '50_50' && e.is_memo === true)
+    (e) => e.split_type !== '50_50'
   );
 
   let totalByParentA = 0;
@@ -126,7 +126,7 @@ export function calculateBalance(
 
 /**
  * Settle all expenses (Quitt)
- * Calls Edge Function to delete expenses + receipts server-side
+ * Uses RPC function to delete all expenses server-side
  */
 export function useSettleExpenses() {
   const { family, profile } = useAuth();
@@ -136,16 +136,12 @@ export function useSettleExpenses() {
     mutationFn: async () => {
       if (!family) throw new Error('Keine Familie');
 
-      // Call Edge Function to handle settlement server-side
-      // This includes: deleting expenses, deleting storage files, resetting cycle
-      const { data, error } = await supabase.functions.invoke('settle_family', {
-        body: {
-          family_id: family.id,
-        },
+      const { data, error } = await supabase.rpc('settle_family', {
+        family_id_param: family.id,
       });
 
       if (error) {
-        console.error('Settlement Edge Function error:', error);
+        console.error('Settlement error:', error);
         throw new Error(error.message || 'Settlement fehlgeschlagen');
       }
 
@@ -153,30 +149,21 @@ export function useSettleExpenses() {
         throw new Error('Settlement fehlgeschlagen');
       }
 
-      // Send notification to other parent (if provided by Edge Function)
+      // Send notification to other parent
       if (data.otherParentId && profile) {
-        notifySettlement(data.otherParentId, profile.display_name).catch((error) =>
-          console.error('Failed to send settlement notification:', error)
+        notifySettlement(data.otherParentId, profile.display_name).catch((err) =>
+          console.error('Failed to send settlement notification:', err)
         );
       }
 
       return {
         deletedCount: data.deletedCount ?? 0,
-        deletedFiles: data.deletedFiles ?? 0,
-        failedFiles: data.failedFiles ?? 0,
       };
     },
     onSuccess: () => {
-      // Invalidate all expense queries
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
-
-      // Invalidate receipt signed URLs (receipts were deleted)
       queryClient.invalidateQueries({ queryKey: ['receiptSignedUrl'] });
-
-      // Invalidate settlement cycle (next_settlement_due_at was reset)
       queryClient.invalidateQueries({ queryKey: ['settlementCycle'] });
-
-      // Clear all cached queries to ensure UI refresh
       queryClient.refetchQueries({ queryKey: ['expenses'], type: 'active' });
     },
   });

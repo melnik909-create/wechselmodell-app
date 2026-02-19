@@ -135,6 +135,8 @@ export interface Handover {
   to_parent: string;
   status: 'pending' | 'completed';
   notes: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
 }
 
 export interface HandoverItem {
@@ -143,13 +145,16 @@ export interface HandoverItem {
   category: HandoverItemCategory;
   description: string;
   is_checked: boolean;
-  checked_an: boolean; // Abgegeben (handed over)
-  checked_ab: boolean; // Zurückgegeben (returned)
-  is_custom: boolean; // Custom user-created item
-  item_name: string | null; // Name for custom items
+  checked_an: boolean;
+  checked_ab: boolean;
+  is_custom: boolean;
+  item_name: string | null;
   photo_url: string | null;
   child_id: string | null;
   sort_order: number;
+  confirmed: boolean;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
 }
 
 export interface Expense {
@@ -165,7 +170,6 @@ export interface Expense {
   receipt_url: string | null;
   date: string;
   status: 'pending' | 'approved' | 'rejected';
-  is_memo: boolean; // 50/50 expenses as memo only (not calculated in balance)
 }
 
 export interface Settlement {

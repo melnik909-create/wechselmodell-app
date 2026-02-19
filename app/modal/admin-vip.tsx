@@ -74,14 +74,24 @@ export default function AdminVIPModal() {
         user_id: user.id,
       });
 
-      if (error) throw error;
+      if (error) {
+        Alert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');
+        return;
+      }
+
+      const result = Array.isArray(data) ? data[0] : data;
+
+      if (!result?.success) {
+        Alert.alert('Fehler', result?.message || 'VIP-Zugang vergeben fehlgeschlagen.');
+        return;
+      }
 
       Alert.alert('✅ Erfolg', `VIP-Zugang vergeben für ${user.display_name}`);
       // Refresh user data
       setUser({
         ...user,
-        plan: 'lifetime',
-        cloud_until: '2099-12-31',
+        plan: result.plan || 'lifetime',
+        cloud_until: result.cloud_until || '2099-12-31',
       });
     } catch (error: any) {
       Alert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');

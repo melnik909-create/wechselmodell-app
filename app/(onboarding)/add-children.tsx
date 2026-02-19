@@ -4,11 +4,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -60,19 +60,19 @@ export default function AddChildrenScreen() {
   async function handleSave() {
     const validChildren = children.filter((c) => c.name.trim());
     if (validChildren.length === 0) {
-      Alert.alert('Fehler', 'Bitte mindestens ein Kind hinzufuegen.');
+      AppAlert.alert('Fehler', 'Bitte mindestens ein Kind hinzufuegen.');
       return;
     }
 
     if (!family) {
-      Alert.alert('Fehler', 'Keine Familie gefunden.');
+      AppAlert.alert('Fehler', 'Keine Familie gefunden.');
       return;
     }
 
     // Validate dates
     for (const child of validChildren) {
       if (child.dateOfBirth && !parseDateToISO(child.dateOfBirth)) {
-        Alert.alert('Fehler', `Ungueltiges Datum "${child.dateOfBirth}". Bitte im Format TT.MM.JJJJ eingeben.`);
+        AppAlert.alert('Fehler', `Ungueltiges Datum "${child.dateOfBirth}". Bitte im Format TT.MM.JJJJ eingeben.`);
         return;
       }
     }
@@ -90,7 +90,7 @@ export default function AddChildrenScreen() {
 
       router.push('/(onboarding)/select-pattern');
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Kinder konnten nicht gespeichert werden.');
+      AppAlert.alert('Fehler', error.message || 'Kinder konnten nicht gespeichert werden.');
     } finally {
       setLoading(false);
     }

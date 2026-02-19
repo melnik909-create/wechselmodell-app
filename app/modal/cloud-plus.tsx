@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,7 +11,7 @@ export default function CloudPlusScreen() {
 
   const handleSubscribe = () => {
     // TODO: Integrate IAP / RevenueCat
-    Alert.alert(
+    AppAlert.alert(
       'Cloud Plus',
       'Die Zahlungsintegration ist noch in Entwicklung. Diese Funktion wird bald verfügbar sein.',
       [{ text: 'OK' }]

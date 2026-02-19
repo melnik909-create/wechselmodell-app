@@ -2,17 +2,16 @@ import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useCustodyPattern, useFamilyMembers } from '@/hooks/useFamily';
-import { useUpdatePattern } from '@/hooks/useFamily';
+import { useAuth } from '@/lib/auth';
+import { useCustodyPattern, useFamilyMembers, useUpdatePattern } from '@/hooks/useFamily';
 import { PATTERN_LABELS } from '@/types';
 import type { PatternType, Parent } from '@/types';
 import { format } from 'date-fns';
@@ -27,36 +26,64 @@ const PATTERN_OPTIONS: { type: PatternType; description: string }[] = [
 
 export default function ChangePatternModal() {
   const { contentMaxWidth } = useResponsive();
+  const { family } = useAuth();
   const { data: currentPattern } = useCustodyPattern();
   const { data: members } = useFamilyMembers();
   const updatePattern = useUpdatePattern();
 
   const [selectedType, setSelectedType] = useState<PatternType>('7_7');
   const [startingParent, setStartingParent] = useState<Parent>('parent_a');
-  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  // 1=Montag ... 7=Sonntag (ISO weekday)
+  const [handoverDay, setHandoverDay] = useState(1);
+
+  const WEEKDAYS = [
+    { value: 1, label: 'Mo' },
+    { value: 2, label: 'Di' },
+    { value: 3, label: 'Mi' },
+    { value: 4, label: 'Do' },
+    { value: 5, label: 'Fr' },
+    { value: 6, label: 'Sa' },
+    { value: 7, label: 'So' },
+  ];
 
   useEffect(() => {
     if (currentPattern) {
       setSelectedType(currentPattern.pattern_type);
       setStartingParent(currentPattern.starting_parent);
-      setStartDate(currentPattern.start_date);
+      // Convert DB handover_day (0=Sun, 1=Mon...6=Sat) to ISO (1=Mon...7=Sun)
+      if (currentPattern.handover_day != null) {
+        setHandoverDay(currentPattern.handover_day === 0 ? 7 : currentPattern.handover_day);
+      }
     }
   }, [currentPattern]);
 
+  // Calculate start_date: most recent occurrence of the selected weekday
+  function getStartDateForWeekday(isoWeekday: number): string {
+    const today = new Date();
+    const jsWeekday = isoWeekday === 7 ? 0 : isoWeekday;
+    const todayDay = today.getDay();
+    let diff = todayDay - jsWeekday;
+    if (diff < 0) diff += 7;
+    const result = new Date(today);
+    result.setDate(today.getDate() - diff);
+    return format(result, 'yyyy-MM-dd');
+  }
+
   const parentName = (parent: Parent) => {
+    if (parent === 'parent_a' && family?.parent_a_label) return family.parent_a_label;
+    if (parent === 'parent_b' && family?.parent_b_label) return family.parent_b_label;
     const member = members?.find((m) => m.role === parent);
-    return member?.profile?.display_name ?? (parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B');
+    if (member?.profile?.display_name) return member.profile.display_name;
+    return parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B';
   };
 
   function handleSave() {
-    if (!startDate) {
-      Alert.alert('Fehler', 'Bitte wähle ein Startdatum.');
-      return;
-    }
+    const startDate = getStartDateForWeekday(handoverDay);
+    const dbHandoverDay = handoverDay === 7 ? 0 : handoverDay;
 
-    Alert.alert(
+    AppAlert.alert(
       'Modell ändern',
-      'Möchtest du das Betreuungsmodell wirklich ändern? Das aktuelle Modell wird deaktiviert und ein neues ab dem gewählten Datum erstellt.',
+      `Möchtest du das Betreuungsmodell wirklich ändern? Wechsel ist jetzt immer ${WEEKDAYS.find(d => d.value === handoverDay)?.label ?? ''}.`,
       [
         { text: 'Abbrechen', style: 'cancel' },
         {
@@ -67,14 +94,15 @@ export default function ChangePatternModal() {
                 pattern_type: selectedType,
                 starting_parent: startingParent,
                 start_date: startDate,
+                handover_day: dbHandoverDay,
               },
               {
                 onSuccess: () => {
-                  Alert.alert('Erfolg', 'Betreuungsmodell wurde geändert!');
+                  AppAlert.alert('Erfolg', 'Betreuungsmodell wurde geändert!');
                   router.back();
                 },
                 onError: (error) => {
-                  Alert.alert('Fehler', `Änderung fehlgeschlagen: ${error.message}`);
+                  AppAlert.alert('Fehler', `Änderung fehlgeschlagen: ${error.message}`);
                 },
               }
             );
@@ -176,17 +204,28 @@ export default function ChangePatternModal() {
           </TouchableOpacity>
         </View>
 
-        {/* Start Date */}
-        <Text style={styles.sectionTitle}>Startdatum</Text>
-        <View style={styles.inputGroup}>
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            value={startDate}
-            onChangeText={setStartDate}
-            placeholderTextColor="#9CA3AF"
-          />
-          <Text style={styles.inputHint}>Ab diesem Datum gilt das neue Modell</Text>
+        {/* Handover Weekday */}
+        <Text style={styles.sectionTitle}>Uebergabetag</Text>
+        <View style={styles.weekdayRow}>
+          {WEEKDAYS.map((day) => (
+            <TouchableOpacity
+              key={day.value}
+              onPress={() => setHandoverDay(day.value)}
+              style={[
+                styles.weekdayButton,
+                handoverDay === day.value && styles.weekdayButtonSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.weekdayButtonText,
+                  handoverDay === day.value && styles.weekdayButtonTextSelected,
+                ]}
+              >
+                {day.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Save Button */}
@@ -319,23 +358,31 @@ const styles = StyleSheet.create({
   parentButtonTextSelected: {
     color: '#fff',
   },
-  inputGroup: {
+  weekdayRow: {
+    flexDirection: 'row',
+    gap: 6,
     marginBottom: 16,
   },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+  weekdayButton: {
+    flex: 1,
     paddingVertical: 10,
-    fontSize: 15,
-    color: '#111',
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#fff',
   },
-  inputHint: {
-    fontSize: 12,
+  weekdayButtonSelected: {
+    borderColor: '#10B981',
+    backgroundColor: '#ECFDF5',
+  },
+  weekdayButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#6B7280',
-    marginTop: 4,
+  },
+  weekdayButtonTextSelected: {
+    color: '#10B981',
   },
   saveButton: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -81,17 +82,17 @@ export default function EditChildScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['children'] });
-      Alert.alert('Geloescht', 'Kind wurde entfernt.', [
+      AppAlert.alert('Geloescht', 'Kind wurde entfernt.', [
         { text: 'OK', onPress: () => { router.back(); router.back(); } }
       ]);
     },
     onError: (error: any) => {
-      Alert.alert('Fehler', error.message);
+      AppAlert.alert('Fehler', error.message);
     },
   });
 
   function handleDelete() {
-    Alert.alert(
+    AppAlert.alert(
       'Kind loeschen',
       `Moechtest du "${child?.name}" wirklich loeschen? Alle zugehoerigen Daten werden unwiderruflich entfernt.`,
       [
@@ -158,12 +159,12 @@ export default function EditChildScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['child', id] });
       queryClient.invalidateQueries({ queryKey: ['children'] });
-      Alert.alert('Gespeichert', 'Informationen wurden aktualisiert.', [
+      AppAlert.alert('Gespeichert', 'Informationen wurden aktualisiert.', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     },
     onError: (error: any) => {
-      Alert.alert('Fehler', error.message);
+      AppAlert.alert('Fehler', error.message);
     },
   });
 

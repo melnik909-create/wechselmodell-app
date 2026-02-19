@@ -4,12 +4,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   Share,
   ActivityIndicator,
   StyleSheet,
   Platform,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,7 +28,7 @@ export default function CreateFamilyScreen() {
 
   async function handleCreate() {
     if (!familyName.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Familiennamen ein.');
+      AppAlert.alert('Fehler', 'Bitte gib einen Familiennamen ein.');
       return;
     }
 
@@ -48,7 +48,7 @@ export default function CreateFamilyScreen() {
       setCreated(true);
       await refreshFamily();
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Familie konnte nicht erstellt werden.');
+      AppAlert.alert('Fehler', error.message || 'Familie konnte nicht erstellt werden.');
     } finally {
       setLoading(false);
     }

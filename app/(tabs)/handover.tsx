@@ -1,27 +1,39 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, Alert, Image } from 'react-native';
-import { router } from 'expo-router';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
-import { useEntitlements } from '@/hooks/useEntitlements';
 import { supabase } from '@/lib/supabase';
 import { useFamilyMembers } from '@/hooks/useFamily';
 import { formatDayMonth } from '@/lib/date-utils';
 import { COLORS } from '@/lib/constants';
-import { HANDOVER_CATEGORY_LABELS, type HandoverItemCategory } from '@/types';
+import { HANDOVER_CATEGORY_LABELS } from '@/types';
 import type { Handover, HandoverItem } from '@/types';
-import ImagePickerButton from '@/components/ImagePickerButton';
-import { uploadImage } from '@/lib/image-upload';
 import { useResponsive } from '@/hooks/useResponsive';
 
 export default function HandoverScreen() {
   const { family, user } = useAuth();
   const { contentMaxWidth } = useResponsive();
-  const { data: entitlements } = useEntitlements();
   const { data: members } = useFamilyMembers();
   const queryClient = useQueryClient();
+
+  const [selectedHandover, setSelectedHandover] = useState<string | null>(null);
+  const [newItemName, setNewItemName] = useState('');
+  const [showAddInput, setShowAddInput] = useState(false);
+
+  // ──────── Data Fetching ────────
 
   const { data: handovers, isLoading } = useQuery({
     queryKey: ['handovers', family?.id],
@@ -32,15 +44,12 @@ export default function HandoverScreen() {
         .select('*')
         .eq('family_id', family.id)
         .order('date', { ascending: false })
-        .limit(20);
+        .limit(30);
       if (error) throw error;
       return data ?? [];
     },
     enabled: !!family,
   });
-
-  const [selectedHandover, setSelectedHandover] = useState<string | null>(null);
-  const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const { data: items } = useQuery({
     queryKey: ['handover_items', selectedHandover],
@@ -57,47 +66,206 @@ export default function HandoverScreen() {
     enabled: !!selectedHandover,
   });
 
-  // Toggle AN checkbox
-  const toggleAN = useMutation({
-    mutationFn: async ({ itemId, checked }: { itemId: string; checked: boolean }) => {
+  // ──────── Derived State ────────
+
+  const selectedData = handovers?.find((h) => h.id === selectedHandover);
+  const isReceiver = selectedData?.to_parent === user?.id;
+  const isSender = selectedData?.from_parent === user?.id;
+  const isPending = selectedData?.status === 'pending';
+
+  const incomingPending =
+    handovers?.filter((h) => h.to_parent === user?.id && h.status === 'pending') ?? [];
+  const outgoingPending =
+    handovers?.filter((h) => h.from_parent === user?.id && h.status === 'pending') ?? [];
+  const pastHandovers =
+    handovers?.filter((h) => h.status === 'completed') ?? [];
+
+  const confirmedCount = items?.filter((i) => i.confirmed).length ?? 0;
+  const totalCount = items?.length ?? 0;
+
+  // ──────── Helpers ────────
+
+  const memberName = (userId: string) => {
+    const member = members?.find((m) => m.user_id === userId);
+    return member?.profile?.display_name ?? 'Unbekannt';
+  };
+
+  const displayName = (userId: string) => {
+    if (userId === user?.id) return 'Dir';
+    return memberName(userId);
+  };
+
+  // ──────── Mutations ────────
+
+  // Confirm single item (receiver)
+  const confirmItem = useMutation({
+    mutationFn: async ({ itemId, confirmed }: { itemId: string; confirmed: boolean }) => {
       const { error } = await supabase
         .from('handover_items')
-        .update({ checked_an: checked })
+        .update({
+          confirmed,
+          confirmed_by: confirmed ? user?.id : null,
+          confirmed_at: confirmed ? new Date().toISOString() : null,
+        })
         .eq('id', itemId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['handover_items', selectedHandover] });
     },
+    onError: (error: any) => {
+      AppAlert.alert('Fehler', error.message || 'Bestätigung fehlgeschlagen.');
+    },
   });
 
-  // Toggle AB checkbox
-  const toggleAB = useMutation({
-    mutationFn: async ({ itemId, checked }: { itemId: string; checked: boolean }) => {
-      const { error } = await supabase
+  // Confirm all items at once (receiver)
+  const confirmAll = useMutation({
+    mutationFn: async () => {
+      if (!selectedHandover || !user) throw new Error('Fehler');
+
+      const { error: itemsError } = await supabase
         .from('handover_items')
-        .update({ checked_ab: checked })
-        .eq('id', itemId);
+        .update({
+          confirmed: true,
+          confirmed_by: user.id,
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('handover_id', selectedHandover)
+        .eq('confirmed', false);
+      if (itemsError) throw itemsError;
+
+      const { error: handoverError } = await supabase
+        .from('handovers')
+        .update({
+          status: 'completed',
+          confirmed_by: user.id,
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq('id', selectedHandover);
+      if (handoverError) throw handoverError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['handover_items', selectedHandover] });
+      queryClient.invalidateQueries({ queryKey: ['handovers', family?.id] });
+      AppAlert.alert('Bestätigt!', 'Übergabe wurde quittiert.');
+      setSelectedHandover(null);
+    },
+    onError: (error: any) => {
+      AppAlert.alert('Fehler', error.message || 'Bestätigung fehlgeschlagen.');
+    },
+  });
+
+  // Create new Mitgabe with auto-populated items
+  const createHandover = useMutation({
+    mutationFn: async () => {
+      if (!family || !user) throw new Error('Nicht angemeldet');
+      const otherMember = members?.find((m) => m.user_id !== user.id);
+      if (!otherMember) throw new Error('Kein anderes Familienmitglied gefunden');
+
+      // Create handover
+      const { data, error } = await supabase
+        .from('handovers')
+        .insert({
+          family_id: family.id,
+          date: new Date().toISOString().split('T')[0],
+          from_parent: user.id,
+          to_parent: otherMember.user_id,
+          status: 'pending',
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Find last completed handover TO me (items I received → should return them)
+      const { data: lastIncoming } = await supabase
+        .from('handovers')
+        .select('id')
+        .eq('family_id', family.id)
+        .eq('to_parent', user.id)
+        .eq('status', 'completed')
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let itemsToInsert: any[] = [];
+
+      if (lastIncoming) {
+        const { data: lastItems } = await supabase
+          .from('handover_items')
+          .select('*')
+          .eq('handover_id', lastIncoming.id)
+          .order('sort_order');
+
+        if (lastItems && lastItems.length > 0) {
+          itemsToInsert = lastItems.map((item, i) => ({
+            handover_id: data.id,
+            category: item.category,
+            description: item.description,
+            item_name: item.item_name,
+            is_custom: item.is_custom,
+            child_id: item.child_id,
+            sort_order: i,
+          }));
+        }
+      }
+
+      // If no items from last handover, add defaults
+      if (itemsToInsert.length === 0) {
+        itemsToInsert = [
+          { handover_id: data.id, category: 'clothing', description: 'Wechselkleidung', sort_order: 0 },
+          { handover_id: data.id, category: 'medication', description: 'Medikamente', sort_order: 1 },
+          { handover_id: data.id, category: 'homework', description: 'Hausaufgaben / Schulsachen', sort_order: 2 },
+          { handover_id: data.id, category: 'toy', description: 'Lieblingsspielzeug', sort_order: 3 },
+        ];
+      }
+
+      await supabase.from('handover_items').insert(itemsToInsert);
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['handovers', family?.id] });
+      setSelectedHandover(data.id);
+    },
+    onError: (error: any) => {
+      AppAlert.alert('Fehler', error.message || 'Mitgabe konnte nicht erstellt werden.');
+    },
+  });
+
+  // Add item to existing handover (sender)
+  const addItem = useMutation({
+    mutationFn: async (name: string) => {
+      if (!selectedHandover) throw new Error('Fehler');
+
+      const { data: existingItems } = await supabase
+        .from('handover_items')
+        .select('sort_order')
+        .eq('handover_id', selectedHandover)
+        .order('sort_order', { ascending: false })
+        .limit(1);
+
+      const maxOrder = existingItems?.[0]?.sort_order ?? 0;
+
+      const { error } = await supabase.from('handover_items').insert({
+        handover_id: selectedHandover,
+        category: 'other',
+        description: name.trim(),
+        item_name: name.trim(),
+        is_custom: true,
+        sort_order: maxOrder + 1,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['handover_items', selectedHandover] });
+      setNewItemName('');
+      setShowAddInput(false);
+    },
+    onError: (error: any) => {
+      AppAlert.alert('Fehler', error.message || 'Item konnte nicht hinzugefügt werden.');
     },
   });
 
-  const updateItemPhoto = useMutation({
-    mutationFn: async ({ itemId, photoPath }: { itemId: string; photoPath: string | null }) => {
-      const { error } = await supabase
-        .from('handover_items')
-        .update({ photo_url: photoPath })
-        .eq('id', itemId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['handover_items', selectedHandover] });
-    },
-  });
-
+  // Delete item (sender)
   const deleteItem = useMutation({
     mutationFn: async (itemId: string) => {
       const { error } = await supabase.from('handover_items').delete().eq('id', itemId);
@@ -108,273 +276,365 @@ export default function HandoverScreen() {
     },
   });
 
-  const createHandover = useMutation({
-    mutationFn: async () => {
-      if (!family || !user) throw new Error('Nicht angemeldet');
-      const otherMember = members?.find((m) => m.user_id !== user.id);
-
-      const { data, error } = await supabase
-        .from('handovers')
-        .insert({
-          family_id: family.id,
-          date: new Date().toISOString().split('T')[0],
-          from_parent: user.id,
-          to_parent: otherMember?.user_id ?? user.id,
-          status: 'pending',
-        })
-        .select()
-        .single();
+  // Delete entire handover (sender)
+  const deleteHandover = useMutation({
+    mutationFn: async (handoverId: string) => {
+      const { error } = await supabase.from('handovers').delete().eq('id', handoverId);
       if (error) throw error;
-
-      // Create default checklist items with AN/AB support
-      const defaultItems = [
-        { handover_id: data.id, category: 'clothing', description: 'Wechselkleidung', sort_order: 0 },
-        { handover_id: data.id, category: 'medication', description: 'Medikamente', sort_order: 1 },
-        { handover_id: data.id, category: 'homework', description: 'Hausaufgaben / Schulsachen', sort_order: 2 },
-        { handover_id: data.id, category: 'toy', description: 'Lieblingsspielzeug', sort_order: 3 },
-      ];
-      await supabase.from('handover_items').insert(defaultItems);
-
-      return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['handovers', family?.id] });
-      setSelectedHandover(data.id);
+      setSelectedHandover(null);
     },
   });
 
-  const handlePhotoSelected = async (itemId: string, uri: string) => {
-    if (!family) return;
+  // ━━━━━━━━━━━━ DETAIL VIEW ━━━━━━━━━━━━
 
-    // Check Cloud Plus entitlement before upload
-    if (!entitlements?.canUpload) {
-      router.push('/modal/cloud-plus');
-      return;
-    }
-
-    try {
-      // Upload via Edge Function (returns PATH, not URL)
-      const photoPath = await uploadImage(uri, 'handover', family.id);
-      await updateItemPhoto.mutateAsync({ itemId, photoPath });
-      Alert.alert('Erfolg', 'Foto wurde hochgeladen.');
-    } catch (error: any) {
-      // Handle Cloud Plus requirement error
-      if (error.message?.includes('Cloud Plus') ||
-          error.message?.includes('402') ||
-          error.message?.includes('Payment Required')) {
-        router.push('/modal/cloud-plus');
-        return;
-      }
-      Alert.alert('Fehler', error.message || 'Foto konnte nicht hochgeladen werden.');
-    }
-  };
-
-  const handlePhotoRemoved = async (itemId: string) => {
-    try {
-      await updateItemPhoto.mutateAsync({ itemId, photoPath: null });
-    } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Foto konnte nicht entfernt werden.');
-    }
-  };
-
-  const handleDeleteItem = (itemId: string, itemName: string) => {
-    Alert.alert('Item löschen', `Möchtest du "${itemName}" wirklich löschen?`, [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Löschen',
-        style: 'destructive',
-        onPress: () => deleteItem.mutate(itemId),
-      },
-    ]);
-  };
-
-  const memberName = (userId: string) => {
-    const member = members?.find((m) => m.user_id === userId);
-    return member?.profile?.display_name ?? 'Unbekannt';
-  };
-
-  // Checklist detail view with AN/AB checkboxes
-  if (selectedHandover && items) {
+  if (selectedHandover && selectedData) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setSelectedHandover(null)} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedHandover(null);
+              setShowAddInput(false);
+            }}
+            style={styles.backButton}
+          >
             <MaterialCommunityIcons name="arrow-left" size={24} color={COLORS.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Übergabe-Checkliste</Text>
-          <TouchableOpacity
-            onPress={() => router.push(`/modal/add-handover-item?handoverId=${selectedHandover}`)}
-            style={styles.addItemButton}
-          >
-            <MaterialCommunityIcons name="plus" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {isReceiver
+              ? `Mitgabe von ${memberName(selectedData.from_parent)}`
+              : 'Meine Mitgabe'}
+          </Text>
+          <View style={styles.headerActions}>
+            {isSender && isPending && (
+              <TouchableOpacity
+                onPress={() => setShowAddInput(!showAddInput)}
+                style={styles.headerActionButton}
+              >
+                <MaterialCommunityIcons name="plus" size={24} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
+            {isSender && isPending && (
+              <TouchableOpacity
+                onPress={() =>
+                  AppAlert.alert('Mitgabe löschen?', 'Möchtest du diese Mitgabe wirklich löschen?', [
+                    { text: 'Abbrechen', style: 'cancel' },
+                    {
+                      text: 'Löschen',
+                      style: 'destructive',
+                      onPress: () => deleteHandover.mutate(selectedHandover),
+                    },
+                  ])
+                }
+                style={styles.headerActionButton}
+              >
+                <MaterialCommunityIcons name="delete-outline" size={22} color={COLORS.error} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* AN/AB Legend */}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendBox, { backgroundColor: '#10B981' }]} />
-            <Text style={styles.legendText}>AN = Abgegeben</Text>
+        {/* Status Banner */}
+        {isReceiver && isPending && (
+          <View style={styles.bannerWarning}>
+            <MaterialCommunityIcons name="package-variant" size={20} color="#92400E" />
+            <Text style={styles.bannerWarningText}>
+              Bitte bestätige die erhaltenen Sachen
+            </Text>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendBox, { backgroundColor: '#3B82F6' }]} />
-            <Text style={styles.legendText}>AB = Zurück</Text>
+        )}
+        {isSender && isPending && (
+          <View style={styles.bannerInfo}>
+            <MaterialCommunityIcons name="clock-outline" size={20} color="#1E40AF" />
+            <Text style={styles.bannerInfoText}>
+              Wartet auf Bestätigung · {confirmedCount}/{totalCount}
+            </Text>
           </View>
-        </View>
+        )}
+        {selectedData.status === 'completed' && (
+          <View style={styles.bannerSuccess}>
+            <MaterialCommunityIcons name="check-circle" size={20} color="#065F46" />
+            <Text style={styles.bannerSuccessText}>Alle Items bestätigt</Text>
+          </View>
+        )}
 
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
-          {items.map((item) => (
-            <View key={item.id} style={styles.checklistItem}>
-              <View style={styles.itemHeader}>
-                <View style={styles.itemTitle}>
-                  {item.is_custom && item.item_name && (
-                    <Text style={styles.itemName}>{item.item_name}</Text>
-                  )}
-                  <Text style={styles.itemDescription}>{item.description}</Text>
-                  <Text style={styles.itemCategory}>
-                    {HANDOVER_CATEGORY_LABELS[item.category]}
-                  </Text>
-                </View>
-                {item.is_custom && (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+            <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+              {/* Inline Add Item (sender only) */}
+              {showAddInput && isSender && isPending && (
+                <View style={styles.addItemRow}>
+                  <TextInput
+                    style={styles.addItemInput}
+                    placeholder="z.B. Regenjacke, Schulranzen..."
+                    value={newItemName}
+                    onChangeText={setNewItemName}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      if (newItemName.trim()) addItem.mutate(newItemName);
+                    }}
+                  />
                   <TouchableOpacity
-                    onPress={() => handleDeleteItem(item.id, item.item_name || item.description)}
-                    style={styles.deleteButton}
+                    style={[
+                      styles.addItemSend,
+                      (!newItemName.trim() || addItem.isPending) && styles.addItemSendDisabled,
+                    ]}
+                    onPress={() => {
+                      if (newItemName.trim()) addItem.mutate(newItemName);
+                    }}
+                    disabled={!newItemName.trim() || addItem.isPending}
                   >
-                    <MaterialCommunityIcons name="delete" size={20} color="#EF4444" />
+                    <MaterialCommunityIcons name="check" size={20} color="#fff" />
                   </TouchableOpacity>
-                )}
-              </View>
+                </View>
+              )}
 
-              {/* AN/AB Checkboxes */}
-              <View style={styles.checkboxRow}>
-                <TouchableOpacity
-                  style={styles.checkboxButton}
-                  onPress={() => toggleAN.mutate({ itemId: item.id, checked: !item.checked_an })}
-                  activeOpacity={0.7}
+              {/* Items List */}
+              {items?.map((item) => (
+                <View
+                  key={item.id}
+                  style={[styles.itemCard, item.confirmed && styles.itemCardConfirmed]}
                 >
-                  <MaterialCommunityIcons
-                    name={item.checked_an ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                    size={28}
-                    color={item.checked_an ? '#10B981' : COLORS.textMuted}
-                  />
-                  <Text style={[styles.checkboxLabel, item.checked_an && styles.checkboxLabelChecked]}>
-                    AN
-                  </Text>
-                </TouchableOpacity>
+                  <View style={styles.itemRow}>
+                    {/* Receiver: Confirm checkbox */}
+                    {isReceiver && isPending && (
+                      <TouchableOpacity
+                        style={styles.confirmCheckbox}
+                        onPress={() =>
+                          confirmItem.mutate({ itemId: item.id, confirmed: !item.confirmed })
+                        }
+                      >
+                        <MaterialCommunityIcons
+                          name={item.confirmed ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                          size={28}
+                          color={item.confirmed ? '#059669' : '#D1D5DB'}
+                        />
+                      </TouchableOpacity>
+                    )}
 
-                <TouchableOpacity
-                  style={styles.checkboxButton}
-                  onPress={() => toggleAB.mutate({ itemId: item.id, checked: !item.checked_ab })}
-                  activeOpacity={0.7}
-                >
-                  <MaterialCommunityIcons
-                    name={item.checked_ab ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                    size={28}
-                    color={item.checked_ab ? '#3B82F6' : COLORS.textMuted}
-                  />
-                  <Text style={[styles.checkboxLabel, item.checked_ab && styles.checkboxLabelChecked]}>
-                    AB
-                  </Text>
-                </TouchableOpacity>
+                    {/* Completed: Show check icon */}
+                    {!isPending && (
+                      <View style={styles.confirmedIcon}>
+                        <MaterialCommunityIcons name="check-circle" size={24} color="#059669" />
+                      </View>
+                    )}
 
-                <TouchableOpacity
-                  onPress={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
-                  style={styles.expandButton}
-                >
-                  <MaterialCommunityIcons
-                    name={expandedItem === item.id ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={COLORS.textMuted}
-                  />
-                </TouchableOpacity>
-              </View>
+                    {/* Item info */}
+                    <View style={styles.itemInfo}>
+                      <Text
+                        style={[styles.itemName, item.confirmed && styles.itemNameConfirmed]}
+                      >
+                        {item.item_name || item.description}
+                      </Text>
+                      <Text style={styles.itemCategory}>
+                        {HANDOVER_CATEGORY_LABELS[item.category] ?? item.category}
+                      </Text>
+                    </View>
 
-              {expandedItem === item.id && (
-                <View style={styles.photoSection}>
-                  <Text style={styles.photoLabel}>Foto (optional)</Text>
-                  <ImagePickerButton
-                    imageUri={null}
-                    onImageSelected={(uri, asset) => handlePhotoSelected(item.id, uri)}
-                    onImageRemoved={() => handlePhotoRemoved(item.id)}
-                    label="Foto hinzufügen"
-                  />
+                    {/* Sender: Status + delete */}
+                    {isSender && isPending && (
+                      <View style={styles.senderActions}>
+                        <MaterialCommunityIcons
+                          name={item.confirmed ? 'check-circle' : 'clock-outline'}
+                          size={20}
+                          color={item.confirmed ? '#059669' : '#D1D5DB'}
+                        />
+                        <TouchableOpacity
+                          onPress={() =>
+                            AppAlert.alert(
+                              'Item löschen?',
+                              `"${item.item_name || item.description}" entfernen?`,
+                              [
+                                { text: 'Abbrechen', style: 'cancel' },
+                                {
+                                  text: 'Löschen',
+                                  style: 'destructive',
+                                  onPress: () => deleteItem.mutate(item.id),
+                                },
+                              ]
+                            )
+                          }
+                          style={styles.deleteItemButton}
+                        >
+                          <MaterialCommunityIcons name="close" size={18} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))}
+
+              {(!items || items.length === 0) && (
+                <View style={styles.emptyItems}>
+                  <MaterialCommunityIcons name="package-variant-closed" size={40} color={COLORS.textMuted} />
+                  <Text style={styles.emptyItemsText}>Keine Items in dieser Mitgabe</Text>
+                  {isSender && isPending && (
+                    <Text style={styles.emptyItemsHint}>
+                      Tippe auf + um Items hinzuzufügen
+                    </Text>
+                  )}
                 </View>
               )}
             </View>
-          ))}
-          </View>
-        </ScrollView>
+          </ScrollView>
+
+          {/* Bottom Action: Receiver confirms all */}
+          {isReceiver && isPending && items && items.length > 0 && (
+            <View style={styles.bottomAction}>
+              <TouchableOpacity
+                style={[styles.confirmAllButton, confirmAll.isPending && styles.buttonDisabled]}
+                onPress={() => confirmAll.mutate()}
+                disabled={confirmAll.isPending}
+              >
+                <MaterialCommunityIcons name="check-all" size={20} color="#fff" />
+                <Text style={styles.confirmAllText}>
+                  {confirmAll.isPending ? 'Wird bestätigt...' : 'Alles bestätigt'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
 
-  // Handover list view
+  // ━━━━━━━━━━━━ LIST VIEW ━━━━━━━━━━━━
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => createHandover.mutate()}
-          disabled={createHandover.isPending}
-          activeOpacity={0.7}
-        >
-          {createHandover.isPending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
+          {/* Create Button */}
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() => createHandover.mutate()}
+            disabled={createHandover.isPending}
+            activeOpacity={0.7}
+          >
+            {createHandover.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="package-variant-closed" size={20} color="#fff" />
+                <Text style={styles.createButtonText}>Neue Mitgabe erstellen</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Incoming - needs my confirmation */}
+          {incomingPending.length > 0 && (
             <>
-              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-              <Text style={styles.createButtonText}>Neue Übergabe erstellen</Text>
+              <Text style={styles.sectionTitle}>Eingehende Mitgabe</Text>
+              {incomingPending.map((handover) => (
+                <TouchableOpacity
+                  key={handover.id}
+                  style={[styles.handoverCard, styles.handoverCardIncoming]}
+                  onPress={() => setSelectedHandover(handover.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.handoverRow}>
+                    <View style={styles.handoverInfo}>
+                      <Text style={styles.handoverDate}>
+                        {formatDayMonth(new Date(handover.date + 'T00:00:00'))}
+                      </Text>
+                      <Text style={styles.handoverFrom}>
+                        Von {memberName(handover.from_parent)}
+                      </Text>
+                    </View>
+                    <View style={styles.badgeIncoming}>
+                      <MaterialCommunityIcons name="package-variant" size={16} color="#92400E" />
+                      <Text style={styles.badgeIncomingText}>Quittieren</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
             </>
           )}
-        </TouchableOpacity>
 
-        <View style={styles.handoverList}>
-          {handovers?.map((handover) => (
-            <TouchableOpacity
-              key={handover.id}
-              style={styles.handoverCard}
-              onPress={() => setSelectedHandover(handover.id)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.handoverRow}>
-                <View>
-                  <Text style={styles.handoverDate}>
-                    {formatDayMonth(new Date(handover.date + 'T00:00:00'))}
-                  </Text>
-                  <Text style={styles.handoverParents}>
-                    {memberName(handover.from_parent)} → {memberName(handover.to_parent)}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    handover.status === 'completed' ? styles.statusCompleted : styles.statusPending,
-                  ]}
+          {/* Outgoing - waiting for confirmation */}
+          {outgoingPending.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Wartet auf Bestätigung</Text>
+              {outgoingPending.map((handover) => (
+                <TouchableOpacity
+                  key={handover.id}
+                  style={styles.handoverCard}
+                  onPress={() => setSelectedHandover(handover.id)}
+                  activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      handover.status === 'completed'
-                        ? styles.statusTextCompleted
-                        : styles.statusTextPending,
-                    ]}
-                  >
-                    {handover.status === 'completed' ? 'Erledigt' : 'Offen'}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+                  <View style={styles.handoverRow}>
+                    <View style={styles.handoverInfo}>
+                      <Text style={styles.handoverDate}>
+                        {formatDayMonth(new Date(handover.date + 'T00:00:00'))}
+                      </Text>
+                      <Text style={styles.handoverFrom}>
+                        An {memberName(handover.to_parent)}
+                      </Text>
+                    </View>
+                    <View style={styles.badgeWaiting}>
+                      <MaterialCommunityIcons name="clock-outline" size={16} color="#1E40AF" />
+                      <Text style={styles.badgeWaitingText}>Offen</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
 
+          {/* Past handovers */}
+          {pastHandovers.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Vergangene Übergaben</Text>
+              {pastHandovers.map((handover) => (
+                <TouchableOpacity
+                  key={handover.id}
+                  style={styles.handoverCard}
+                  onPress={() => setSelectedHandover(handover.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.handoverRow}>
+                    <View style={styles.handoverInfo}>
+                      <Text style={styles.handoverDate}>
+                        {formatDayMonth(new Date(handover.date + 'T00:00:00'))}
+                      </Text>
+                      <Text style={styles.handoverFrom}>
+                        {memberName(handover.from_parent)} → {displayName(handover.to_parent)}
+                      </Text>
+                    </View>
+                    <View style={styles.badgeCompleted}>
+                      <MaterialCommunityIcons name="check-circle" size={16} color="#059669" />
+                      <Text style={styles.badgeCompletedText}>Bestätigt</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
+
+          {/* Empty state */}
           {(!handovers || handovers.length === 0) && !isLoading && (
             <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="swap-horizontal" size={48} color={COLORS.textMuted} />
-              <Text style={styles.emptyText}>Noch keine Übergaben</Text>
+              <MaterialCommunityIcons name="package-variant" size={56} color={COLORS.textMuted} />
+              <Text style={styles.emptyTitle}>Noch keine Übergaben</Text>
+              <Text style={styles.emptySubtitle}>
+                Erstelle eine Mitgabe-Liste um Sachen{'\n'}bei der Übergabe zu tracken
+              </Text>
             </View>
           )}
-        </View>
+
+          {isLoading && (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -382,84 +642,338 @@ export default function HandoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingVertical: 16 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+
+  // ── Header ──
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  backButton: { marginRight: 12 },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '600', color: '#111' },
-  addItemButton: { padding: 4 },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 24,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+  backButton: {
+    marginRight: 12,
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendBox: { width: 16, height: 16, borderRadius: 4 },
-  legendText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  checklistItem: {
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  headerActionButton: {
+    padding: 6,
+  },
+
+  // ── Banners ──
+  bannerWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFBEB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FDE68A',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  bannerWarningText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#92400E',
+  },
+  bannerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#EFF6FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#BFDBFE',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  bannerInfoText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1E40AF',
+  },
+  bannerSuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#ECFDF5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#A7F3D0',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  bannerSuccessText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#065F46',
+  },
+
+  // ── Add Item Inline ──
+  addItemRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  addItemInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  addItemSend: {
+    backgroundColor: COLORS.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addItemSendDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+
+  // ── Item Cards ──
+  itemCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  itemTitle: { flex: 1 },
-  itemName: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 2 },
-  itemDescription: { fontSize: 14, color: '#374151' },
-  itemCategory: { fontSize: 12, color: '#9CA3AF', marginTop: 2 },
-  deleteButton: { padding: 4 },
-  checkboxRow: { flexDirection: 'row', gap: 16, alignItems: 'center' },
-  checkboxButton: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  checkboxLabel: { fontSize: 16, fontWeight: '600', color: '#6B7280' },
-  checkboxLabelChecked: { color: '#111' },
-  expandButton: { marginLeft: 'auto', padding: 4 },
-  photoSection: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  photoLabel: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 },
+  itemCardConfirmed: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  confirmCheckbox: {
+    marginRight: 12,
+  },
+  confirmedIcon: {
+    marginRight: 12,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  itemNameConfirmed: {
+    color: '#065F46',
+  },
+  itemCategory: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  senderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deleteItemButton: {
+    padding: 4,
+  },
+
+  // ── Empty Items ──
+  emptyItems: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyItemsText: {
+    fontSize: 15,
+    color: COLORS.textMuted,
+    marginTop: 8,
+  },
+  emptyItemsHint: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginTop: 4,
+  },
+
+  // ── Bottom Action ──
+  bottomAction: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#fff',
+  },
+  confirmAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    paddingVertical: 14,
+    borderRadius: 10,
+  },
+  confirmAllText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+
+  // ── Create Button ──
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.primary,
     padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
+    borderRadius: 10,
+    marginBottom: 20,
     gap: 8,
   },
-  createButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  handoverList: { marginTop: 0 },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // ── Section Title ──
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 10,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // ── Handover Cards ──
   handoverCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  handoverRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  handoverDate: { fontSize: 16, fontWeight: '600', color: '#111' },
-  handoverParents: { fontSize: 14, color: '#6B7280' },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  statusCompleted: { backgroundColor: '#D1FAE5' },
-  statusPending: { backgroundColor: '#FEF3C7' },
-  statusText: { fontSize: 12, fontWeight: '500' },
-  statusTextCompleted: { color: '#059669' },
-  statusTextPending: { color: '#D97706' },
-  emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { fontSize: 16, color: '#9CA3AF', marginTop: 8 },
+  handoverCardIncoming: {
+    borderColor: '#FDE68A',
+    borderWidth: 2,
+    backgroundColor: '#FFFBEB',
+  },
+  handoverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  handoverInfo: {
+    flex: 1,
+  },
+  handoverDate: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  handoverFrom: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
+  // ── Badges ──
+  badgeIncoming: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  badgeIncomingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  badgeWaiting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  badgeWaitingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E40AF',
+  },
+  badgeCompleted: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  badgeCompletedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
+  },
+
+  // ── Empty & Loading States ──
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginTop: 12,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  loadingState: {
+    paddingVertical: 60,
+    alignItems: 'center',
+  },
 });

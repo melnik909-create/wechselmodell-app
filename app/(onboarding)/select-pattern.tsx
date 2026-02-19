@@ -4,10 +4,10 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,28 +25,61 @@ export default function SelectPatternScreen() {
   const { contentMaxWidth } = useResponsive();
   const [selectedPattern, setSelectedPattern] = useState<PatternType>('7_7');
   const [startingParent, setStartingParent] = useState<Parent>('parent_a');
+
+  const parentName = (parent: Parent) => {
+    if (parent === 'parent_a' && family?.parent_a_label) return family.parent_a_label;
+    if (parent === 'parent_b' && family?.parent_b_label) return family.parent_b_label;
+    return parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B';
+  };
+  // 1=Montag ... 7=Sonntag (ISO weekday)
+  const [handoverDay, setHandoverDay] = useState(1); // Default: Montag
   const [loading, setLoading] = useState(false);
 
-  const today = new Date();
+  const WEEKDAYS = [
+    { value: 1, label: 'Mo' },
+    { value: 2, label: 'Di' },
+    { value: 3, label: 'Mi' },
+    { value: 4, label: 'Do' },
+    { value: 5, label: 'Fr' },
+    { value: 6, label: 'Sa' },
+    { value: 7, label: 'So' },
+  ];
+
+  // Calculate start_date: most recent occurrence of the selected weekday
+  function getStartDateForWeekday(isoWeekday: number): Date {
+    const today = new Date();
+    // JS: 0=Sun, 1=Mon ... 6=Sat → convert ISO weekday to JS
+    const jsWeekday = isoWeekday === 7 ? 0 : isoWeekday;
+    const todayDay = today.getDay();
+    let diff = todayDay - jsWeekday;
+    if (diff < 0) diff += 7;
+    const result = new Date(today);
+    result.setDate(today.getDate() - diff);
+    return result;
+  }
+
+  const startDate = getStartDateForWeekday(handoverDay);
+  const startDateISO = startDate.toISOString().split('T')[0];
+
   const preview = getCustodyForRange(
     {
       id: 'preview',
       family_id: '',
       pattern_type: selectedPattern,
-      start_date: today.toISOString().split('T')[0],
+      start_date: startDateISO,
       starting_parent: startingParent,
       custom_sequence: null,
       is_active: true,
-      handover_day: null,
+      handover_day: handoverDay === 7 ? 0 : handoverDay, // DB: 0=Sun, 1=Mon
     },
-    today,
-    addDays(today, 13),
+    startDate,
+    addDays(startDate, 13),
     []
   );
 
   async function handleSave() {
     if (!family) {
-      Alert.alert('Fehler', 'Keine Familie gefunden.');
+      AppAlert.alert('Fehler', 'Keine Familie gefunden.');
       return;
     }
 
@@ -55,9 +88,10 @@ export default function SelectPatternScreen() {
       const { error } = await supabase.from('custody_patterns').insert({
         family_id: family.id,
         pattern_type: selectedPattern,
-        start_date: today.toISOString().split('T')[0],
+        start_date: startDateISO,
         starting_parent: startingParent,
         is_active: true,
+        handover_day: handoverDay === 7 ? 0 : handoverDay, // DB: 0=Sun, 1=Mon...6=Sat
       });
 
       if (error) throw error;
@@ -65,7 +99,7 @@ export default function SelectPatternScreen() {
       await refreshFamily();
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Muster konnte nicht gespeichert werden.');
+      AppAlert.alert('Fehler', error.message || 'Muster konnte nicht gespeichert werden.');
     } finally {
       setLoading(false);
     }
@@ -122,7 +156,7 @@ export default function SelectPatternScreen() {
                   startingParent === 'parent_a' && styles.parentButtonTextSelectedA,
                 ]}
               >
-                Elternteil A
+                {parentName('parent_a')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -138,13 +172,37 @@ export default function SelectPatternScreen() {
                   startingParent === 'parent_b' && styles.parentButtonTextSelectedB,
                 ]}
               >
-                Elternteil B
+                {parentName('parent_b')}
               </Text>
             </TouchableOpacity>
           </View>
 
+          {/* Handover Weekday */}
+          <Text style={styles.sectionTitle}>An welchem Tag ist die Uebergabe?</Text>
+          <View style={styles.weekdayRow}>
+            {WEEKDAYS.map((day) => (
+              <TouchableOpacity
+                key={day.value}
+                onPress={() => setHandoverDay(day.value)}
+                style={[
+                  styles.weekdayButton,
+                  handoverDay === day.value && styles.weekdayButtonSelected,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.weekdayButtonText,
+                    handoverDay === day.value && styles.weekdayButtonTextSelected,
+                  ]}
+                >
+                  {day.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {/* Preview */}
-          <Text style={styles.sectionTitle}>Vorschau (naechste 14 Tage)</Text>
+          <Text style={styles.sectionTitle}>Vorschau (14 Tage)</Text>
           <View style={styles.previewCard}>
             <View style={styles.previewGrid}>
               {preview.map((day, i) => (
@@ -183,11 +241,11 @@ export default function SelectPatternScreen() {
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_a }]} />
-              <Text style={styles.legendText}>Elternteil A</Text>
+              <Text style={styles.legendText}>{parentName('parent_a')}</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: PARENT_COLORS.parent_b }]} />
-              <Text style={styles.legendText}>Elternteil B</Text>
+              <Text style={styles.legendText}>{parentName('parent_b')}</Text>
             </View>
           </View>
         </View>
@@ -305,6 +363,32 @@ const styles = StyleSheet.create({
   },
   parentButtonTextSelectedB: {
     color: '#A855F7',
+  },
+  weekdayRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 24,
+  },
+  weekdayButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  weekdayButtonSelected: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+  },
+  weekdayButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  weekdayButtonTextSelected: {
+    color: '#4F46E5',
   },
   previewCard: {
     backgroundColor: '#F9FAFB',

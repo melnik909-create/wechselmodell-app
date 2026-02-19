@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/lib/auth';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,6 +14,12 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (Platform.OS === 'web' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Switch, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -16,7 +17,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Fehler', 'Bitte E-Mail und Passwort eingeben.');
+      AppAlert.alert('Fehler', 'Bitte E-Mail und Passwort eingeben.');
       return;
     }
 
@@ -25,7 +26,7 @@ export default function LoginScreen() {
       await signIn(email.trim(), password);
       router.replace('/');
     } catch (error: any) {
-      Alert.alert('Anmeldung fehlgeschlagen', error.message || 'Bitte versuche es erneut.');
+      AppAlert.alert('Anmeldung fehlgeschlagen', error.message || 'Bitte versuche es erneut.');
     } finally {
       setLoading(false);
     }

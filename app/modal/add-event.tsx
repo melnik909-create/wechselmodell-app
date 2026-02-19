@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -39,11 +39,11 @@ export default function AddEventModal() {
 
   function handleSave() {
     if (!title.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Titel ein.');
+      AppAlert.alert('Fehler', 'Bitte gib einen Titel ein.');
       return;
     }
     if (!date) {
-      Alert.alert('Fehler', 'Bitte wähle ein Datum aus.');
+      AppAlert.alert('Fehler', 'Bitte wähle ein Datum aus.');
       return;
     }
 
@@ -59,11 +59,11 @@ export default function AddEventModal() {
       },
       {
         onSuccess: () => {
-          Alert.alert('Erfolg', 'Termin wurde erstellt!');
+          AppAlert.alert('Erfolg', 'Termin wurde erstellt!');
           router.back();
         },
         onError: (error) => {
-          Alert.alert('Fehler', `Termin konnte nicht erstellt werden: ${error.message}`);
+          AppAlert.alert('Fehler', `Termin konnte nicht erstellt werden: ${error.message}`);
         },
       }
     );

@@ -249,6 +249,7 @@ export function useUpdatePattern() {
       pattern_type: CustodyPattern['pattern_type'];
       starting_parent: CustodyPattern['starting_parent'];
       start_date: string;
+      handover_day?: number | null;
     }) => {
       if (!family) throw new Error('No family');
 
@@ -269,7 +270,7 @@ export function useUpdatePattern() {
         start_date: newPattern.start_date,
         is_active: true,
         custom_sequence: null,
-        handover_day: null,
+        handover_day: newPattern.handover_day ?? null,
       });
 
       if (insertError) throw insertError;

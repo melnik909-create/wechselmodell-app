@@ -4,10 +4,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
@@ -23,7 +23,7 @@ export default function JoinFamilyScreen() {
   async function handleJoin() {
     const trimmedCode = code.trim().toUpperCase();
     if (trimmedCode.length !== 6) {
-      Alert.alert('Fehler', 'Der Einladungscode muss 6 Zeichen lang sein.');
+      AppAlert.alert('Fehler', 'Der Einladungscode muss 6 Zeichen lang sein.');
       return;
     }
 
@@ -37,7 +37,7 @@ export default function JoinFamilyScreen() {
       const family = Array.isArray(data) ? data[0] : data;
 
       if (findError || !family) {
-        Alert.alert('Fehler', 'Kein guentiger Einladungscode. Bitte ueberpruefen.');
+        AppAlert.alert('Fehler', 'Kein guentiger Einladungscode. Bitte ueberpruefen.');
         return;
       }
 
@@ -50,7 +50,7 @@ export default function JoinFamilyScreen() {
         .single();
 
       if (existing) {
-        Alert.alert('Hinweis', 'Du bist bereits Mitglied dieser Familie.');
+        AppAlert.alert('Hinweis', 'Du bist bereits Mitglied dieser Familie.');
         await refreshFamily();
         router.replace('/(tabs)');
         return;
@@ -68,13 +68,13 @@ export default function JoinFamilyScreen() {
       if (joinError) throw joinError;
 
       await refreshFamily();
-      Alert.alert(
+      AppAlert.alert(
         'Willkommen!',
         `Du bist der Familie "${family.family_name}" beigetreten.`,
         [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Beitritt fehlgeschlagen.');
+      AppAlert.alert('Fehler', error.message || 'Beitritt fehlgeschlagen.');
     } finally {
       setLoading(false);
     }

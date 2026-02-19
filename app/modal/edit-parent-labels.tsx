@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -33,12 +34,12 @@ export default function EditParentLabelsScreen() {
       },
       {
         onSuccess: () => {
-          Alert.alert('Gespeichert', 'Elternnamen wurden aktualisiert.', [
+          AppAlert.alert('Gespeichert', 'Elternnamen wurden aktualisiert.', [
             { text: 'OK', onPress: () => router.back() },
           ]);
         },
         onError: (error: any) => {
-          Alert.alert('Fehler', error.message || 'Konnte nicht speichern.');
+          AppAlert.alert('Fehler', error.message || 'Konnte nicht speichern.');
         },
       }
     );

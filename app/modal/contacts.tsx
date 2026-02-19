@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -27,7 +28,7 @@ export default function ContactsScreen() {
   };
 
   const handleDelete = (contactId: string, name: string) => {
-    Alert.alert('Kontakt löschen', `Möchtest du "${name}" wirklich löschen?`, [
+    AppAlert.alert('Kontakt löschen', `Möchtest du "${name}" wirklich löschen?`, [
       { text: 'Abbrechen', style: 'cancel' },
       {
         text: 'Löschen',

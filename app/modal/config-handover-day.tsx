@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -38,11 +38,11 @@ export default function ConfigHandoverDayModal() {
 
   function handleSave() {
     if (selectedDay === null) {
-      Alert.alert('Fehler', 'Bitte wähle einen Wochentag.');
+      AppAlert.alert('Fehler', 'Bitte wähle einen Wochentag.');
       return;
     }
 
-    Alert.alert(
+    AppAlert.alert(
       'Übergabetag festlegen',
       `Möchtest du ${WEEKDAYS.find((d) => d.value === selectedDay)?.label} als Standard-Übergabetag festlegen?`,
       [
@@ -52,11 +52,11 @@ export default function ConfigHandoverDayModal() {
           onPress: () => {
             updateHandoverDay.mutate(selectedDay, {
               onSuccess: () => {
-                Alert.alert('Erfolg', 'Übergabetag wurde festgelegt!');
+                AppAlert.alert('Erfolg', 'Übergabetag wurde festgelegt!');
                 router.back();
               },
               onError: (error) => {
-                Alert.alert('Fehler', `Änderung fehlgeschlagen: ${error.message}`);
+                AppAlert.alert('Fehler', `Änderung fehlgeschlagen: ${error.message}`);
               },
             });
           },

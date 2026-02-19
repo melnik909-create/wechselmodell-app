@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -59,7 +60,7 @@ export default function CalendarScreen() {
   };
 
   function handleAccept(exceptionId: string) {
-    Alert.alert('Ausnahme akzeptieren', 'Möchtest du diese Ausnahme akzeptieren?', [
+    AppAlert.alert('Ausnahme akzeptieren', 'Möchtest du diese Ausnahme akzeptieren?', [
       { text: 'Abbrechen', style: 'cancel' },
       {
         text: 'Akzeptieren',
@@ -69,7 +70,7 @@ export default function CalendarScreen() {
   }
 
   function handleReject(exceptionId: string) {
-    Alert.alert('Ausnahme ablehnen', 'Möchtest du diese Ausnahme ablehnen?', [
+    AppAlert.alert('Ausnahme ablehnen', 'Möchtest du diese Ausnahme ablehnen?', [
       { text: 'Abbrechen', style: 'cancel' },
       {
         text: 'Ablehnen',
@@ -80,21 +81,25 @@ export default function CalendarScreen() {
   }
 
   function handleDayPress(day: Date, inCurrentMonth: boolean) {
-    if (!inCurrentMonth) return; // Ignore days outside current month
+    if (!inCurrentMonth) return;
 
     const dateString = format(day, 'yyyy-MM-dd');
 
-    Alert.alert(
-      'Termin erstellen',
-      `Welchen Typ Termin möchtest du für den ${format(day, 'dd.MM.yyyy')} erstellen?`,
+    AppAlert.alert(
+      format(day, 'dd.MM.yyyy'),
+      'Was möchtest du erstellen?',
       [
+        {
+          text: 'Normaler Termin',
+          onPress: () => router.push(`/modal/add-event?date=${dateString}`),
+        },
         {
           text: 'Schul-Termin',
           onPress: () => router.push(`/modal/add-event?date=${dateString}&category=school`),
         },
         {
-          text: 'Normaler Termin',
-          onPress: () => router.push(`/modal/add-event?date=${dateString}`),
+          text: 'Ausnahme-Tag beantragen',
+          onPress: () => router.push(`/modal/add-exception?date=${dateString}`),
         },
         {
           text: 'Abbrechen',

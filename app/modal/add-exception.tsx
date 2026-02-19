@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { AppAlert } from '@/lib/alert';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
@@ -16,15 +17,24 @@ import { useResponsive } from '@/hooks/useResponsive';
 const REASONS: ExceptionReason[] = ['vacation', 'sick', 'swap', 'holiday', 'other'];
 
 export default function AddExceptionModal() {
+  const params = useLocalSearchParams<{ date?: string }>();
   const { contentMaxWidth } = useResponsive();
   const { family, user, profile } = useAuth();
   const { data: pattern } = useCustodyPattern();
   const { data: members } = useFamilyMembers();
   const queryClient = useQueryClient();
 
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(params.date || new Date().toISOString().split('T')[0]);
   const [reason, setReason] = useState<ExceptionReason>('swap');
   const [note, setNote] = useState('');
+
+  const parentName = (parent: Parent) => {
+    if (parent === 'parent_a' && family?.parent_a_label) return family.parent_a_label;
+    if (parent === 'parent_b' && family?.parent_b_label) return family.parent_b_label;
+    const member = members?.find((m) => m.role === parent);
+    if (member?.profile?.display_name) return member.profile.display_name;
+    return parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B';
+  };
 
   // Calculate who normally has the child on the selected date
   const normalParent = pattern
@@ -62,12 +72,12 @@ export default function AddExceptionModal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custody_exceptions'] });
-      Alert.alert('Erfolg', 'Ausnahme wurde vorgeschlagen.', [
+      AppAlert.alert('Erfolg', 'Ausnahme wurde vorgeschlagen.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     },
     onError: (error: any) => {
-      Alert.alert('Fehler', error.message || 'Ausnahme konnte nicht erstellt werden.');
+      AppAlert.alert('Fehler', error.message || 'Ausnahme konnte nicht erstellt werden.');
     },
   });
 
@@ -97,12 +107,12 @@ export default function AddExceptionModal() {
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
                 Normalerweise bei: <Text style={styles.infoTextBold}>
-                  {normalParent === 'parent_a' ? 'Elternteil A' : 'Elternteil B'}
+                  {parentName(normalParent)}
                 </Text>
               </Text>
               <Text style={[styles.infoText, styles.infoTextMargin]}>
                 Wechsel zu: <Text style={styles.infoTextHighlight}>
-                  {newParent === 'parent_a' ? 'Elternteil A' : 'Elternteil B'}
+                  {parentName(newParent!)}
                 </Text>
               </Text>
             </View>

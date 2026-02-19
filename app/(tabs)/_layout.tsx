@@ -31,6 +31,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="actions"
+        options={{
+          title: 'Aktionen',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="lightning-bolt" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="calendar"
         options={{
           title: 'Kalender',

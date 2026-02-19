@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -40,7 +41,7 @@ export default function SchoolModal() {
 
   async function handleAddTask() {
     if (!taskTitle.trim()) {
-      Alert.alert('Fehler', 'Bitte einen Titel eingeben.');
+      AppAlert.alert('Fehler', 'Bitte einen Titel eingeben.');
       return;
     }
 
@@ -60,7 +61,7 @@ export default function SchoolModal() {
       setTaskDueDate('');
       setShowAddTask(false);
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Aufgabe konnte nicht erstellt werden.');
+      AppAlert.alert('Fehler', error.message || 'Aufgabe konnte nicht erstellt werden.');
     }
   }
 
@@ -69,12 +70,12 @@ export default function SchoolModal() {
     try {
       await toggleTask.mutateAsync({ taskId: task.id, status: newStatus });
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Status konnte nicht geändert werden.');
+      AppAlert.alert('Fehler', error.message || 'Status konnte nicht geändert werden.');
     }
   }
 
   async function handleDeleteTask(taskId: string) {
-    Alert.alert('Aufgabe löschen', 'Möchtest du diese Aufgabe wirklich löschen?', [
+    AppAlert.alert('Aufgabe löschen', 'Möchtest du diese Aufgabe wirklich löschen?', [
       { text: 'Abbrechen', style: 'cancel' },
       {
         text: 'Löschen',
@@ -83,7 +84,7 @@ export default function SchoolModal() {
           try {
             await deleteTask.mutateAsync(taskId);
           } catch (error: any) {
-            Alert.alert('Fehler', error.message || 'Aufgabe konnte nicht gelöscht werden.');
+            AppAlert.alert('Fehler', error.message || 'Aufgabe konnte nicht gelöscht werden.');
           }
         },
       },

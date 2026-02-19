@@ -5,11 +5,11 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -47,7 +47,7 @@ export default function AddContactModal() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Namen ein.');
+      AppAlert.alert('Fehler', 'Bitte gib einen Namen ein.');
       return;
     }
 
@@ -70,7 +70,7 @@ export default function AddContactModal() {
             notes: notes.trim() || null,
           },
         });
-        Alert.alert('Erfolg', 'Kontakt wurde aktualisiert.', [
+        AppAlert.alert('Erfolg', 'Kontakt wurde aktualisiert.', [
           { text: 'OK', onPress: () => router.back() },
         ]);
       } else {
@@ -88,12 +88,12 @@ export default function AddContactModal() {
           email: email.trim() || null,
           notes: notes.trim() || null,
         });
-        Alert.alert('Erfolg', 'Kontakt wurde hinzugefügt.', [
+        AppAlert.alert('Erfolg', 'Kontakt wurde hinzugefügt.', [
           { text: 'OK', onPress: () => router.back() },
         ]);
       }
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Kontakt konnte nicht gespeichert werden.');
+      AppAlert.alert('Fehler', error.message || 'Kontakt konnte nicht gespeichert werden.');
     }
   };
 

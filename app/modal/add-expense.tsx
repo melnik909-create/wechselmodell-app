@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -33,16 +34,14 @@ export default function AddExpenseModal() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptAsset, setReceiptAsset] = useState<ImagePickerAsset | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isMemo, setIsMemo] = useState(false);
-
   async function handleSave() {
     const numAmount = parseFloat(amount.replace(',', '.'));
     if (isNaN(numAmount) || numAmount <= 0) {
-      Alert.alert('Fehler', 'Bitte einen gültigen Betrag eingeben.');
+      AppAlert.alert('Fehler', 'Bitte einen gültigen Betrag eingeben.');
       return;
     }
     if (!description.trim()) {
-      Alert.alert('Fehler', 'Bitte eine Beschreibung eingeben.');
+      AppAlert.alert('Fehler', 'Bitte eine Beschreibung eingeben.');
       return;
     }
 
@@ -85,11 +84,10 @@ export default function AddExpenseModal() {
         split_percentage: 50,
         receipt_url: receiptUrl,
         date: new Date().toISOString().split('T')[0],
-        is_memo: isMemo,
       });
-      router.back();
+      router.replace('/(tabs)/expenses');
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Ausgabe konnte nicht gespeichert werden.');
+      AppAlert.alert('Fehler', error.message || 'Ausgabe konnte nicht gespeichert werden.');
     } finally {
       setIsUploading(false);
     }
@@ -245,26 +243,22 @@ export default function AddExpenseModal() {
             </TouchableOpacity>
           </View>
 
-          {/* Memo Checkbox (only for 50/50 split) */}
-          {splitType === '50_50' && (
-            <TouchableOpacity
-              style={styles.memoContainer}
-              onPress={() => setIsMemo(!isMemo)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons
-                name={isMemo ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                size={24}
-                color="#4F46E5"
-              />
-              <View style={styles.memoTextContainer}>
-                <Text style={styles.memoLabel}>Nur zur Erinnerung (Memo)</Text>
-                <Text style={styles.memoHint}>
-                  Wird nicht im Saldo berechnet (bereits ausgeglichen)
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
+          {/* Split Type Info */}
+          <View style={styles.splitInfoContainer}>
+            <MaterialCommunityIcons
+              name={splitType === '50_50' ? 'check-circle' : 'alert-circle'}
+              size={20}
+              color={splitType === '50_50' ? '#10B981' : '#F59E0B'}
+            />
+            <Text style={[
+              styles.splitInfoText,
+              { color: splitType === '50_50' ? '#10B981' : '#F59E0B' }
+            ]}>
+              {splitType === '50_50'
+                ? 'Bereits 50:50 Abgerechnet.'
+                : 'Muss noch verrechnet werden.'}
+            </Text>
+          </View>
           </View>
         </ScrollView>
 
@@ -426,31 +420,20 @@ const styles = StyleSheet.create({
   splitButtonTextUnselected: {
     color: '#6B7280',
   },
-  memoContainer: {
+  splitInfoContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
     backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  memoTextContainer: {
-    flex: 1,
-  },
-  memoLabel: {
-    fontSize: 15,
+  splitInfoText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#111',
-    marginBottom: 4,
-  },
-  memoHint: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
+    flex: 1,
   },
   buttonContainer: {
     padding: 16,

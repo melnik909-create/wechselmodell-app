@@ -1,11 +1,13 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDocuments, useUpdateDocumentHolder, useAddDocument, useDeleteDocument } from '@/hooks/useDocuments';
 import { useChildren } from '@/hooks/useFamily';
+import { useAuth } from '@/lib/auth';
 import { COLORS } from '@/lib/constants';
-import { DOCUMENT_TYPE_LABELS, DOCUMENT_HOLDER_LABELS, type DocumentType, type DocumentHolder } from '@/types';
+import { DOCUMENT_TYPE_LABELS, type DocumentType, type DocumentHolder } from '@/types';
 import { useResponsive } from '@/hooks/useResponsive';
 
 const DOCUMENT_TYPES: DocumentType[] = [
@@ -29,6 +31,7 @@ const HOLDERS: DocumentHolder[] = ['parent_a', 'parent_b', 'other', 'unknown'];
 
 export default function DocumentsScreen() {
   const { contentMaxWidth } = useResponsive();
+  const { family } = useAuth();
   const { data: documents, isLoading } = useDocuments();
   const { data: children } = useChildren();
   const updateHolder = useUpdateDocumentHolder();
@@ -38,7 +41,7 @@ export default function DocumentsScreen() {
   // Initialize documents for each child if they don't exist
   const initializeDocuments = async () => {
     if (!children || children.length === 0) {
-      Alert.alert('Hinweis', 'Bitte füge zuerst ein Kind hinzu.');
+      AppAlert.alert('Hinweis', 'Bitte füge zuerst ein Kind hinzu.');
       return;
     }
 
@@ -66,12 +69,12 @@ export default function DocumentsScreen() {
         for (const doc of newDocs) {
           await addDocument.mutateAsync(doc);
         }
-        Alert.alert('Erfolg', `${newDocs.length} Dokumente wurden initialisiert.`);
+        AppAlert.alert('Erfolg', `${newDocs.length} Dokumente wurden initialisiert.`);
       } else {
-        Alert.alert('Info', 'Alle Dokumente sind bereits vorhanden.');
+        AppAlert.alert('Info', 'Alle Dokumente sind bereits vorhanden.');
       }
     } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Konnte Dokumente nicht initialisieren.');
+      AppAlert.alert('Fehler', error.message || 'Konnte Dokumente nicht initialisieren.');
     }
   };
 
@@ -82,6 +85,13 @@ export default function DocumentsScreen() {
   const getChildName = (childId: string | null) => {
     if (!childId) return 'Allgemein';
     return children?.find((c) => c.id === childId)?.name || 'Unbekannt';
+  };
+
+  const holderLabel = (holder: DocumentHolder): string => {
+    if (holder === 'parent_a') return family?.parent_a_label || 'Elternteil A';
+    if (holder === 'parent_b') return family?.parent_b_label || 'Elternteil B';
+    if (holder === 'other') return 'Anderer Ort';
+    return 'Unbekannt';
   };
 
   const getHolderColor = (holder: DocumentHolder) => {
@@ -162,7 +172,7 @@ export default function DocumentsScreen() {
                         {doc.custom_name || DOCUMENT_TYPE_LABELS[doc.document_type]}
                       </Text>
                       <Text style={styles.docHolder}>
-                        Bei: {DOCUMENT_HOLDER_LABELS[doc.held_by]}
+                        Bei: {holderLabel(doc.held_by)}
                       </Text>
                     </View>
                   </View>
@@ -188,9 +198,10 @@ export default function DocumentsScreen() {
                               fontWeight: '700',
                             },
                           ]}
+                          numberOfLines={1}
                         >
-                          {holder === 'parent_a' && 'A'}
-                          {holder === 'parent_b' && 'B'}
+                          {holder === 'parent_a' && (family?.parent_a_label || 'A')}
+                          {holder === 'parent_b' && (family?.parent_b_label || 'B')}
                           {holder === 'other' && '?'}
                           {holder === 'unknown' && '⌀'}
                         </Text>
@@ -343,7 +354,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   holderButtonText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: '#9CA3AF',
   },

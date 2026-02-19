@@ -45,7 +45,7 @@ CREATE OR REPLACE FUNCTION public.grant_vip_access(
 RETURNS TABLE (
   success BOOLEAN,
   message TEXT,
-  user_id UUID,
+  affected_user_id UUID,
   plan TEXT,
   cloud_until TIMESTAMPTZ
 )
