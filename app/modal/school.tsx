@@ -438,16 +438,17 @@ function EventCardWithRSVP({
                 onPress={() => onSetAttendance(status)}
                 style={[
                   styles.rsvpButton,
-                  { borderColor: colors.border, backgroundColor: isSelected ? colors.activeBg : colors.bg },
-                  isSelected && { borderWidth: 2 },
+                  isSelected
+                    ? { borderColor: colors.activeBg, backgroundColor: colors.activeBg, borderWidth: 2 }
+                    : { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
                 ]}
               >
                 <MaterialCommunityIcons
                   name={RSVP_ICONS[status] as any}
                   size={16}
-                  color={isSelected ? '#fff' : colors.text}
+                  color={isSelected ? '#fff' : '#6B7280'}
                 />
-                <Text style={[styles.rsvpButtonText, { color: isSelected ? '#fff' : colors.text }, isSelected && { fontWeight: '700' }]}>
+                <Text style={[styles.rsvpButtonText, isSelected ? { color: '#fff', fontWeight: '700' } : { color: '#6B7280' }]}>
                   {ATTENDANCE_STATUS_LABELS[status]}
                 </Text>
               </TouchableOpacity>

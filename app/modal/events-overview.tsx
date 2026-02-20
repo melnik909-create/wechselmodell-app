@@ -373,12 +373,13 @@ function EventRsvpCard({ event, userId, members, onSetAttendance }: {
                 onPress={() => onSetAttendance(status)}
                 style={[
                   styles.rsvpChip,
-                  { borderColor: colors.border, backgroundColor: isSelected ? colors.activeBg : colors.bg },
-                  isSelected && { borderWidth: 2 },
+                  isSelected
+                    ? { borderColor: colors.activeBg, backgroundColor: colors.activeBg, borderWidth: 2 }
+                    : { borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' },
                 ]}
               >
-                <MaterialCommunityIcons name={RSVP_ICONS[status] as any} size={14} color={isSelected ? '#fff' : colors.text} />
-                <Text style={[styles.rsvpChipText, { color: isSelected ? '#fff' : colors.text }, isSelected && { fontWeight: '700' }]}>
+                <MaterialCommunityIcons name={RSVP_ICONS[status] as any} size={14} color={isSelected ? '#fff' : '#6B7280'} />
+                <Text style={[styles.rsvpChipText, isSelected ? { color: '#fff', fontWeight: '700' } : { color: '#6B7280' }]}>
                   {ATTENDANCE_STATUS_LABELS[status]}
                 </Text>
               </TouchableOpacity>
