@@ -26,7 +26,7 @@ export const EXCEPTION_COLORS = {
   rejected: '#EF4444',  // ROT (Red)
 } as const;
 
-export const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/melnik909-create/projects/wechselmodell-app/builds';
+export const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/dimaj/projects/wechselmodell-planer-app/builds/fa84cc13-5469-4b3f-859f-e52ae48b6161';
 
 export const APP_VERSION = '1.0.2';
 

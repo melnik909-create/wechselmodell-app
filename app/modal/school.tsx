@@ -364,6 +364,18 @@ export default function SchoolModal() {
   );
 }
 
+const RSVP_COLORS: Record<AttendanceStatus, { bg: string; border: string; text: string; activeBg: string }> = {
+  yes:   { bg: '#F0FDF4', border: '#86EFAC', text: '#15803D', activeBg: '#22C55E' },
+  no:    { bg: '#FEF2F2', border: '#FCA5A5', text: '#B91C1C', activeBg: '#EF4444' },
+  maybe: { bg: '#FFFBEB', border: '#FCD34D', text: '#92400E', activeBg: '#F59E0B' },
+};
+
+const RSVP_ICONS: Record<AttendanceStatus, string> = {
+  yes: 'check-circle',
+  no: 'close-circle',
+  maybe: 'help-circle',
+};
+
 function EventCardWithRSVP({
   event,
   userId,
@@ -378,12 +390,13 @@ function EventCardWithRSVP({
   const { data: attendances } = useEventAttendances(event.id);
   const myAttendance = attendances?.find((a) => a.user_id === userId);
 
-  const attendeeNames = attendances
-    ?.filter((a) => a.status === 'yes')
+  const otherResponses = attendances
+    ?.filter((a) => a.user_id !== userId)
     .map((a) => {
       const member = members.find((m) => m.user_id === a.user_id);
-      return member?.profile?.display_name ?? 'Unbekannt';
-    });
+      const name = member?.profile?.display_name ?? 'Partner';
+      return { name, status: a.status as AttendanceStatus };
+    }) ?? [];
 
   return (
     <View style={styles.eventCard}>
@@ -393,42 +406,53 @@ function EventCardWithRSVP({
       <View style={styles.eventContent}>
         <Text style={styles.eventTitle}>{event.title}</Text>
         <Text style={styles.eventDetails}>
-          📅 {formatDayMonth(new Date(event.date + 'T00:00:00'))}
+          {formatDayMonth(new Date(event.date + 'T00:00:00'))}
           {event.time && ` • ${event.time.substring(0, 5)}`}
         </Text>
         {event.location && (
-          <Text style={styles.eventDetails}>📍 {event.location}</Text>
+          <Text style={styles.eventDetails}>{event.location}</Text>
         )}
 
-        {/* Attendees */}
-        {attendeeNames && attendeeNames.length > 0 && (
-          <Text style={styles.attendeesText}>
-            ✓ {attendeeNames.join(', ')}
-          </Text>
+        {/* Other parent responses */}
+        {otherResponses.length > 0 && (
+          <View style={styles.otherResponsesRow}>
+            {otherResponses.map((r, i) => (
+              <View key={i} style={[styles.otherResponseTag, { backgroundColor: RSVP_COLORS[r.status].bg, borderColor: RSVP_COLORS[r.status].border }]}>
+                <MaterialCommunityIcons name={RSVP_ICONS[r.status] as any} size={14} color={RSVP_COLORS[r.status].text} />
+                <Text style={[styles.otherResponseText, { color: RSVP_COLORS[r.status].text }]}>
+                  {r.name}: {ATTENDANCE_STATUS_LABELS[r.status]}
+                </Text>
+              </View>
+            ))}
+          </View>
         )}
 
-        {/* RSVP Buttons */}
+        {/* My RSVP Buttons */}
         <View style={styles.rsvpContainer}>
-          {(['yes', 'no', 'maybe'] as AttendanceStatus[]).map((status) => (
-            <TouchableOpacity
-              key={status}
-              onPress={() => onSetAttendance(status)}
-              style={[
-                styles.rsvpButton,
-                myAttendance?.status === status && styles.rsvpButtonSelected,
-              ]}
-            >
-              <Text
+          {(['yes', 'no', 'maybe'] as AttendanceStatus[]).map((status) => {
+            const isSelected = myAttendance?.status === status;
+            const colors = RSVP_COLORS[status];
+            return (
+              <TouchableOpacity
+                key={status}
+                onPress={() => onSetAttendance(status)}
                 style={[
-                  styles.rsvpButtonText,
-                  myAttendance?.status === status && styles.rsvpButtonTextSelected,
+                  styles.rsvpButton,
+                  { borderColor: colors.border, backgroundColor: isSelected ? colors.activeBg : colors.bg },
+                  isSelected && { borderWidth: 2 },
                 ]}
               >
-                {status === 'yes' ? '✓' : status === 'no' ? '✗' : '?'}{' '}
-                {ATTENDANCE_STATUS_LABELS[status]}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <MaterialCommunityIcons
+                  name={RSVP_ICONS[status] as any}
+                  size={16}
+                  color={isSelected ? '#fff' : colors.text}
+                />
+                <Text style={[styles.rsvpButtonText, { color: isSelected ? '#fff' : colors.text }, isSelected && { fontWeight: '700' }]}>
+                  {ATTENDANCE_STATUS_LABELS[status]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     </View>
@@ -688,6 +712,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
+  otherResponsesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  otherResponseTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  otherResponseText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   attendeesText: {
     fontSize: 12,
     color: '#10B981',
@@ -702,25 +746,17 @@ const styles = StyleSheet.create({
   },
   rsvpButton: {
     flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  rsvpButtonSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   rsvpButtonText: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  rsvpButtonTextSelected: {
-    color: COLORS.primary,
+    fontSize: 12,
     fontWeight: '600',
   },
   hintBox: {

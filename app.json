@@ -18,6 +18,7 @@
       "bundleIdentifier": "com.wechselmodellplaner.app",
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
         ]
       }
@@ -32,6 +33,9 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
+        "WAKE_LOCK",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
         "WAKE_LOCK"
       ],
       "intentFilters": [
@@ -43,7 +47,23 @@
               "scheme": "wechselmodell-planer"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "wechselmodell-planer"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -72,6 +92,12 @@
       "eas": {
         "projectId": "ba5ec67e-4e84-4f5d-bdc4-2c1b78467e8f"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ba5ec67e-4e84-4f5d-bdc4-2c1b78467e8f"
     }
   }
 }
