@@ -26,6 +26,10 @@ export const EXCEPTION_COLORS = {
   rejected: '#EF4444',  // ROT (Red)
 } as const;
 
+export const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/melnik909-create/projects/wechselmodell-app/builds';
+
+export const APP_VERSION = '1.1.0';
+
 export function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/O/0/1 for readability
   let code = '';

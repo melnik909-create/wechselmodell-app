@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Switch, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Switch, ScrollView, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/hooks/useResponsive';
 import { BiometricAuth } from '@/lib/biometric-auth';
+import { APK_DOWNLOAD_URL } from '@/lib/constants';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -155,6 +156,23 @@ export default function LoginScreen() {
                   <Text style={styles.link}>Registrieren</Text>
                 </Link>
               </View>
+
+              {Platform.OS === 'web' && APK_DOWNLOAD_URL && (
+                <TouchableOpacity
+                  style={styles.apkBanner}
+                  onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.apkBannerIcon}>
+                    <MaterialCommunityIcons name="android" size={28} color="#fff" />
+                  </View>
+                  <View style={styles.apkBannerContent}>
+                    <Text style={styles.apkBannerTitle}>Android App (Beta)</Text>
+                    <Text style={styles.apkBannerDesc}>APK herunterladen & installieren</Text>
+                  </View>
+                  <MaterialCommunityIcons name="download" size={22} color="#fff" />
+                </TouchableOpacity>
+              )}
 
               {/* App Description – oben */}
               <View style={styles.descriptionBox}>
@@ -327,6 +345,41 @@ const styles = StyleSheet.create({
   link: {
     color: '#4F46E5',
     fontWeight: '600',
+  },
+  apkBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 20,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#1B5E20',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  apkBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#2E7D32',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  apkBannerContent: {
+    flex: 1,
+  },
+  apkBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  apkBannerDesc: {
+    fontSize: 12,
+    color: '#A5D6A7',
+    marginTop: 1,
   },
   descriptionBox: {
     marginTop: 32,
