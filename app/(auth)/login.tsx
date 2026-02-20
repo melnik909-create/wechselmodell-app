@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Switch, ScrollView, KeyboardAvoidingView, Platform, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Switch, ScrollView, KeyboardAvoidingView, Platform, Linking, Modal, Image } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/hooks/useResponsive';
 import { BiometricAuth } from '@/lib/biometric-auth';
 import { APK_DOWNLOAD_URL } from '@/lib/constants';
+
+const IOS_WEB_APP_ANLEITUNG = require('../../assets/ios-web-app-anleitung.png');
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -18,6 +20,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [hasSavedCreds, setHasSavedCreds] = useState(false);
+  const [iosAnleitungVisible, setIosAnleitungVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -87,25 +90,6 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.container, { maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }]}>
-            {Platform.OS === 'web' && (
-              <TouchableOpacity
-                style={styles.apkTopBanner}
-                onPress={() => {
-                  if (typeof window !== 'undefined') {
-                    window.open(APK_DOWNLOAD_URL, '_blank');
-                  }
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={{ fontSize: 22 }}>📱</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.apkTopBannerText}>Android App herunterladen</Text>
-                  <Text style={{ fontSize: 11, color: '#A5D6A7' }}>APK installieren & offline nutzen</Text>
-                </View>
-                <Text style={{ fontSize: 18, color: '#A5D6A7' }}>→</Text>
-              </TouchableOpacity>
-            )}
-
             {/* Logo */}
             <View style={[styles.logoContainer, isLandscape && { marginBottom: 24 }]}>
               <MaterialCommunityIcons name="calendar-sync" size={isLandscape ? 40 : 60} color="#4F46E5" />
@@ -185,6 +169,33 @@ export default function LoginScreen() {
                 </Text>
               </View>
 
+              {/* App Download: Android + iOS Web-App Anleitung (nur Web) */}
+              {Platform.OS === 'web' && (
+                <View style={styles.downloadSection}>
+                  <TouchableOpacity
+                    style={styles.downloadBanner}
+                    onPress={() => typeof window !== 'undefined' && window.open(APK_DOWNLOAD_URL, '_blank')}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="android" size={32} color="#374151" />
+                    <View style={styles.downloadBannerTextWrap}>
+                      <Text style={styles.downloadBannerTitle}>App Download</Text>
+                      <Text style={styles.downloadBannerSub}>Android-App herunterladen · APK installieren & offline nutzen</Text>
+                    </View>
+                    <MaterialCommunityIcons name="open-in-new" size={20} color="#6B7280" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iosAnleitungButton}
+                    onPress={() => setIosAnleitungVisible(true)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons name="apple" size={32} color="#374151" />
+                    <Text style={styles.iosAnleitungLabel}>iOS Web-App installieren</Text>
+                    <Text style={styles.iosAnleitungHint}>Anleitung anzeigen</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Trial & Pricing Info – darunter */}
               <View style={styles.trialInfo}>
                 <Text style={styles.trialText}>
@@ -237,6 +248,36 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Modal: iOS Web-App Install-Anleitung */}
+      <Modal
+        visible={iosAnleitungVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIosAnleitungVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setIosAnleitungVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setIosAnleitungVisible(false)}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
+              <MaterialCommunityIcons name="close" size={28} color="#374151" />
+            </TouchableOpacity>
+            <Image
+              source={IOS_WEB_APP_ANLEITUNG}
+              style={styles.anleitungImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.modalCaption}>iOS Web-App auf dem iPhone installieren</Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -349,27 +390,91 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontWeight: '600',
   },
-  apkTopBanner: {
+  downloadSection: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  downloadBanner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 16,
-    paddingVertical: 12,
+    gap: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: '#1B5E20',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  apkTopBannerText: {
+  downloadBannerTextWrap: {
+    flex: 1,
+  },
+  downloadBannerTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
+    color: '#374151',
+  },
+  downloadBannerSub: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  iosAnleitungButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    minWidth: 120,
+  },
+  iosAnleitungLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  iosAnleitungHint: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  modalBackdrop: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    maxWidth: 400,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalClose: {
+    alignSelf: 'flex-end',
+    marginBottom: 8,
+  },
+  anleitungImage: {
+    width: '100%',
+    aspectRatio: 1,
+    maxHeight: 360,
+    borderRadius: 8,
+  },
+  modalCaption: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 12,
+    textAlign: 'center',
   },
   descriptionBox: {
     marginTop: 32,
