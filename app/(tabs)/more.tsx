@@ -194,17 +194,22 @@ export default function MoreScreen() {
           </TouchableOpacity>
         )}
 
-        {Platform.OS === 'web' && APK_DOWNLOAD_URL && (
+        {Platform.OS === 'web' && (
           <TouchableOpacity
             style={styles.apkTopBanner}
-            onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+            onPress={() => {
+              if (typeof window !== 'undefined') {
+                window.open(APK_DOWNLOAD_URL, '_blank');
+              }
+            }}
             activeOpacity={0.8}
           >
-            <MaterialCommunityIcons name="cellphone-arrow-down" size={22} color="#fff" />
-            <Text style={styles.apkTopBannerText}>
-              Jetzt die Android App herunterladen!
-            </Text>
-            <MaterialCommunityIcons name="chevron-right" size={20} color="#A5D6A7" />
+            <Text style={{ fontSize: 20 }}>📱</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.apkTopBannerText}>Android App herunterladen</Text>
+              <Text style={{ fontSize: 11, color: '#A5D6A7' }}>APK installieren & offline nutzen</Text>
+            </View>
+            <Text style={{ fontSize: 16, color: '#A5D6A7' }}>→</Text>
           </TouchableOpacity>
         )}
 
