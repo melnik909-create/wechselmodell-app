@@ -133,20 +133,10 @@ export default function MoreScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase.functions.invoke('delete_account', {
-                body: {},
-              });
+              const { error } = await supabase.rpc('delete_my_account');
               if (error) throw new Error(error.message);
             } catch (e: any) {
-              const msg = e?.message || '';
-              if (msg.includes('FunctionsFetchError') || msg.includes('Failed to send') || msg.includes('fetch')) {
-                AppAlert.alert(
-                  'Fehler',
-                  'Die Konto-Löschung ist aktuell nicht verfügbar (Server-Funktion nicht erreichbar).\n\nBitte kontaktiere den Support unter:\nschwabauer.dima@gmail.com'
-                );
-              } else {
-                AppAlert.alert('Fehler', msg || 'Konto konnte nicht geloescht werden.');
-              }
+              AppAlert.alert('Fehler', e?.message || 'Konto konnte nicht geloescht werden.');
               return;
             }
 
