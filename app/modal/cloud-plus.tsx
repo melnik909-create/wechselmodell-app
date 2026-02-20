@@ -8,6 +8,7 @@ import { COLORS } from '@/lib/constants';
 import { useResponsive } from '@/hooks/useResponsive';
 import { usePayment } from '@/hooks/usePayment';
 import { useAuth } from '@/lib/auth';
+import { useEntitlements } from '@/hooks/useEntitlements';
 
 type CloudPlan = 'cloud_plus_monthly' | 'cloud_plus_yearly';
 
@@ -15,6 +16,7 @@ export default function CloudPlusScreen() {
   const { contentMaxWidth } = useResponsive();
   const { processPayment, loading: paymentLoading } = usePayment();
   const { profile, user } = useAuth();
+  const { data: entitlements } = useEntitlements();
   const [selectedPlan, setSelectedPlan] = useState<CloudPlan>('cloud_plus_yearly');
 
   const handleSubscribe = async () => {
@@ -55,6 +57,27 @@ export default function CloudPlusScreen() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+
+        {entitlements?.canUpload ? (
+          <View style={{ backgroundColor: '#ECFDF5', borderRadius: 16, borderWidth: 2, borderColor: '#10B981', padding: 24, alignItems: 'center' }}>
+            <MaterialCommunityIcons name="check-circle" size={64} color="#10B981" />
+            <Text style={{ fontSize: 22, fontWeight: '700', color: '#065F46', marginTop: 16, textAlign: 'center' }}>
+              Cloud Plus ist aktiv!
+            </Text>
+            <Text style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 22 }}>
+              Du kannst Belege, Fotos und Dokumente hochladen.
+              {entitlements.cloudDaysRemaining !== null && entitlements.cloudDaysRemaining < 9999
+                ? `\nNoch ${entitlements.cloudDaysRemaining} Tage verbleibend.`
+                : '\nLebenslanger Zugang.'}
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: '#10B981', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, marginTop: 24 }}
+              onPress={() => router.back()}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Zurück zur App</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (<>
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.iconCircle}>
@@ -169,6 +192,7 @@ export default function CloudPlusScreen() {
             weiterhin.
           </Text>
         </View>
+        </>)}
         </View>
       </ScrollView>
     </SafeAreaView>

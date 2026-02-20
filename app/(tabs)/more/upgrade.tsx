@@ -59,7 +59,8 @@ export default function UpgradeScreen() {
               }
             />
             <Text style={styles.statusTitle}>
-              {entitlements?.isLifetime ? 'Core (Lifetime)' :
+              {entitlements?.isLifetime && entitlements?.canUpload ? 'Lifetime + Cloud Plus' :
+               entitlements?.isLifetime ? 'Core (Lifetime)' :
                entitlements?.isCloudPlusActive ? 'Cloud Plus aktiv' :
                entitlements?.isTrialActive ? 'Testversion' :
                'Nicht freigeschaltet'}
@@ -113,18 +114,18 @@ export default function UpgradeScreen() {
         </View>
 
         {/* Action Buttons */}
-        {!entitlements?.isLifetime && (
+        {!entitlements?.isLifetime && !entitlements?.isCloudPlusActive && (
           <TouchableOpacity
             style={styles.upgradeButton}
             onPress={() => router.push('/modal/paywall')}
             activeOpacity={0.7}
           >
             <MaterialCommunityIcons name="lock-open" size={20} color="#fff" />
-            <Text style={styles.upgradeButtonText}>Core freischalten (19,99 €)</Text>
+            <Text style={styles.upgradeButtonText}>Core freischalten (14,99 €)</Text>
           </TouchableOpacity>
         )}
 
-        {!entitlements?.isCloudPlusActive && (
+        {!entitlements?.canUpload && (
           <TouchableOpacity
             style={styles.cloudPlusButton}
             onPress={() => router.push('/modal/cloud-plus')}

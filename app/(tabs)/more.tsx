@@ -241,22 +241,28 @@ export default function MoreScreen() {
           description="z.B. Freitag als festen Übergabetag setzen"
           onPress={() => router.push('/modal/config-handover-day')}
         />
-        <SettingsItem
-          icon="star"
-          label="Vollversion kaufen"
-          description="Alle Funktionen freischalten"
-          onPress={() => router.push('/modal/paywall')}
-        />
-        <SettingsItem
-          icon="cloud"
-          label="Cloud Plus Abo"
-          description={cloudPlusDescription}
-          onPress={handleManageCloudPlus}
-        />
+        {entitlements && !entitlements.isLifetime && !entitlements.isCloudPlusActive && (
+          <SettingsItem
+            icon="star"
+            label="Vollversion kaufen"
+            description="Alle Funktionen freischalten"
+            onPress={() => router.push('/modal/paywall')}
+          />
+        )}
+        {entitlements && !entitlements.canUpload && (
+          <SettingsItem
+            icon="cloud"
+            label="Cloud Plus Abo"
+            description={cloudPlusDescription}
+            onPress={handleManageCloudPlus}
+          />
+        )}
         <SettingsItem
           icon="badge-account"
           label="Upgrade & Status"
-          description="Dein aktueller Plan und Features"
+          description={entitlements?.isLifetime
+            ? (entitlements.canUpload ? 'Lifetime + Cloud Plus aktiv' : 'Lifetime aktiv')
+            : 'Dein aktueller Plan und Features'}
           onPress={() => router.push('/more/upgrade')}
         />
         <SettingsItem

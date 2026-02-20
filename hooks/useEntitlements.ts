@@ -54,14 +54,14 @@ export function useEntitlements() {
       const trialEndAt = data.trial_end_at ? new Date(data.trial_end_at) : null;
       const cloudUntil = data.cloud_until ? new Date(data.cloud_until) : null;
 
-      // Compute flags
       const isTrialActive = data.plan === 'trial' && trialEndAt !== null && now < trialEndAt;
       const isLifetime = data.plan === 'lifetime';
       const isCloudPlusActive =
         data.plan === 'cloud_plus' && cloudUntil !== null && now < cloudUntil;
+      const hasCloudAccess = cloudUntil !== null && now < cloudUntil;
 
       const canUseCore = isTrialActive || isLifetime || isCloudPlusActive;
-      const canUpload = isCloudPlusActive;
+      const canUpload = isCloudPlusActive || (isLifetime && hasCloudAccess);
 
       // Helper: days remaining
       const trialDaysRemaining = trialEndAt

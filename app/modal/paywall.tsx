@@ -122,6 +122,29 @@ Bitte melde dich an um echte Zahlungen zu tätigen.`,
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+
+        {/* Already unlocked */}
+        {entitlements?.canUseCore && !entitlements.isTrialActive && (
+          <View style={styles.alreadyUnlocked}>
+            <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+              <MaterialCommunityIcons name="check-circle" size={64} color="#10B981" />
+              <Text style={{ fontSize: 22, fontWeight: '700', color: '#065F46', marginTop: 16, textAlign: 'center' }}>
+                Bereits freigeschaltet!
+              </Text>
+              <Text style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 22 }}>
+                {entitlements.isLifetime ? 'Du hast die Lifetime-Version.' : 'Dein Plan ist aktiv.'}
+                {entitlements.canUpload ? '\nCloud Plus ist ebenfalls aktiv.' : ''}
+              </Text>
+              <TouchableOpacity
+                style={{ backgroundColor: '#10B981', paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, marginTop: 24 }}
+                onPress={() => router.back()}
+              >
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Zurück zur App</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Trial Expired Warning */}
         {isTrialExpired && (
           <View style={styles.expiredWarning}>
@@ -132,7 +155,8 @@ Bitte melde dich an um echte Zahlungen zu tätigen.`,
           </View>
         )}
 
-        {/* Hero Section */}
+        {/* Hero Section + Plans (hidden when already unlocked) */}
+        {(!entitlements?.canUseCore || entitlements.isTrialActive) && (<>
         <View style={styles.heroSection}>
           <View style={styles.iconCircle}>
             <MaterialCommunityIcons name="lock-open" size={48} color="#4F46E5" />
@@ -274,6 +298,7 @@ Bitte melde dich an um echte Zahlungen zu tätigen.`,
         <Text style={styles.termsText}>
           Das Cloud Plus Abo verlängert sich automatisch. Du kannst jederzeit kündigen.
         </Text>
+        </>)}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -318,6 +343,13 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingVertical: 24,
+  },
+  alreadyUnlocked: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#10B981',
+    marginBottom: 16,
   },
   heroSection: {
     alignItems: 'center',
