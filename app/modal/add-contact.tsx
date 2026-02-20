@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -44,6 +44,10 @@ export default function AddContactModal() {
   const [mobile, setMobile] = useState(existingContact?.mobile || '');
   const [email, setEmail] = useState(existingContact?.email || '');
   const [notes, setNotes] = useState(existingContact?.notes || '');
+
+  useEffect(() => {
+    if (!existingContact && children?.length === 1) setChildId(children[0].id);
+  }, [children, existingContact]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -131,36 +135,43 @@ export default function AddContactModal() {
             />
           </View>
 
-          {/* Child Assignment */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Zugeordnet zu Kind</Text>
-            <View style={styles.childSelector}>
-              <TouchableOpacity
-                style={[styles.childOption, !childId && styles.childOptionSelected]}
-                onPress={() => setChildId(null)}
-              >
-                <Text style={[styles.childOptionText, !childId && styles.childOptionTextSelected]}>
-                  Allgemein
-                </Text>
-              </TouchableOpacity>
-              {children?.map((child) => (
+          {/* Child Assignment – bei nur einem Kind automatisch zugeordnet */}
+          {children && children.length > 1 && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Zugeordnet zu Kind</Text>
+              <View style={styles.childSelector}>
                 <TouchableOpacity
-                  key={child.id}
-                  style={[styles.childOption, childId === child.id && styles.childOptionSelected]}
-                  onPress={() => setChildId(child.id)}
+                  style={[styles.childOption, !childId && styles.childOptionSelected]}
+                  onPress={() => setChildId(null)}
                 >
-                  <Text
-                    style={[
-                      styles.childOptionText,
-                      childId === child.id && styles.childOptionTextSelected,
-                    ]}
-                  >
-                    {child.name}
+                  <Text style={[styles.childOptionText, !childId && styles.childOptionTextSelected]}>
+                    Allgemein
                   </Text>
                 </TouchableOpacity>
-              ))}
+                {children.map((child) => (
+                  <TouchableOpacity
+                    key={child.id}
+                    style={[styles.childOption, childId === child.id && styles.childOptionSelected]}
+                    onPress={() => setChildId(child.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.childOptionText,
+                        childId === child.id && styles.childOptionTextSelected,
+                      ]}
+                    >
+                      {child.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
+          {children?.length === 1 && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.autoChildHint}>Zugeordnet zu: {children[0].name}</Text>
+            </View>
+          )}
 
           {/* Parent Names */}
           <View style={styles.section}>
@@ -326,6 +337,11 @@ const styles = StyleSheet.create({
   inputMultiline: {
     minHeight: 80,
     textAlignVertical: 'top',
+  },
+  autoChildHint: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '500',
   },
   childSelector: {
     flexDirection: 'row',

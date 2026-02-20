@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import * as Linking from 'expo-linking';
 import { COLORS, APK_DOWNLOAD_URL } from '@/lib/constants';
 import { useResponsive } from '@/hooks/useResponsive';
+import ChildAvatar from '@/components/ChildAvatar';
 
 export default function MoreScreen() {
   const { profile, family, signOut } = useAuth();
@@ -220,9 +221,7 @@ export default function MoreScreen() {
           >
             <View style={styles.childRow}>
               <View style={styles.childLeft}>
-                <View style={styles.childAvatar}>
-                  <MaterialCommunityIcons name="account-child" size={22} color="#A855F7" />
-                </View>
+                <ChildAvatar familyId={family?.id} child={child} size={44} />
                 <View>
                   <Text style={styles.childName}>{child.name}</Text>
                   {child.date_of_birth && (
@@ -279,6 +278,12 @@ export default function MoreScreen() {
           label="Wichtige Dokumente"
           description="z.B. Sorgerechtsbeschluss, Umgangsregelung"
           onPress={() => router.push('/modal/documents')}
+        />
+        <SettingsItem
+          icon="lock"
+          label="PIN für sensible Daten"
+          description="Reisepassnummer etc. nur nach PIN-Eingabe sichtbar"
+          onPress={() => router.push('/modal/set-sensitive-pin')}
         />
         <SettingsItem
           icon="account-edit"

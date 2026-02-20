@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Image } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Image, Modal, TextInput, Pressable } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,66 +9,9 @@ import { useAuth } from '@/lib/auth';
 import { COLORS } from '@/lib/constants';
 import type { Child, EmergencyContact } from '@/types';
 import { useResponsive } from '@/hooks/useResponsive';
-
-// Create a generic signed URL request function (similar to getReceiptImageUrl)
-async function requestSignedDownloadUrl(familyId: string, bucket: string, path: string): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const response = await fetch(
-    `${supabaseUrl}/functions/v1/create_download_url`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ family_id: familyId, bucket, path }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to get signed URL');
-  }
-
-  const { signedUrl } = await response.json();
-  return signedUrl;
-}
-
-// Hook for fetching signed avatar URL with caching
-function useAvatarSignedUrl(familyId: string | undefined, childId: string | undefined, path: string | null) {
-  return useQuery({
-    queryKey: ['avatarSignedUrl', familyId, childId, path],
-    queryFn: async () => {
-      if (!path || !familyId) return null;
-
-      // Legacy support: if path is old URL format, use directly
-      if (path.startsWith('http')) {
-        console.warn('Legacy avatar URL detected:', path);
-        return path;
-      }
-
-      // Fetch signed download URL via Edge Function
-      try {
-        const signedUrl = await requestSignedDownloadUrl(familyId, 'avatars', path);
-        return signedUrl;
-      } catch (error: any) {
-        if (error.message?.includes('Cloud Plus') ||
-            error.message?.includes('402') ||
-            error.message?.includes('Payment Required')) {
-          console.log('Cloud Plus required to view avatar');
-          return null;
-        }
-        throw error;
-      }
-    },
-    enabled: !!path && !!familyId,
-    staleTime: 9 * 60 * 1000, // 9 minutes (before 10-minute expiry)
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-}
+import { useChildAvatarUrl } from '@/hooks/useChildAvatarUrl';
+import { SensitivePin } from '@/lib/sensitive-pin';
+import { AppAlert } from '@/lib/alert';
 
 export default function ChildInfoScreen() {
   const { contentMaxWidth } = useResponsive();
@@ -105,7 +49,43 @@ export default function ChildInfoScreen() {
   });
 
   // Load avatar signed URL with caching
-  const { data: avatarSignedUrl } = useAvatarSignedUrl(family?.id, id, child?.avatar_url ?? null);
+  const { data: avatarSignedUrl } = useChildAvatarUrl(family?.id, id, child?.avatar_url ?? null);
+
+  const [showPassportRevealed, setShowPassportRevealed] = useState(false);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [hasPin, setHasPin] = useState(false);
+  useEffect(() => {
+    SensitivePin.hasPin().then(setHasPin);
+  }, []);
+
+  const handlePassportPress = () => {
+    if (showPassportRevealed) return;
+    if (!hasPin) {
+      AppAlert.alert(
+        'PIN setzen',
+        'Um die Reisepassnummer anzuzeigen, musst du zuerst in den Einstellungen unter "PIN für sensible Daten" einen PIN festlegen.',
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          { text: 'Zu Einstellungen', onPress: () => router.push('/(tabs)/more') },
+        ]
+      );
+      return;
+    }
+    setPinInput('');
+    setPinModalVisible(true);
+  };
+
+  const handlePinConfirm = async () => {
+    const ok = await SensitivePin.checkPin(pinInput);
+    if (ok) {
+      setShowPassportRevealed(true);
+      setPinModalVisible(false);
+      setPinInput('');
+    } else {
+      AppAlert.alert('Fehler', 'Falscher PIN.');
+    }
+  };
 
   if (!id) {
     return (
@@ -161,6 +141,31 @@ export default function ChildInfoScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <Modal visible={pinModalVisible} transparent animationType="fade">
+        <Pressable style={styles.pinModalOverlay} onPress={() => setPinModalVisible(false)}>
+          <Pressable style={styles.pinModalBox} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.pinModalTitle}>PIN eingeben</Text>
+            <TextInput
+              style={styles.pinModalInput}
+              value={pinInput}
+              onChangeText={setPinInput}
+              placeholder="PIN"
+              secureTextEntry
+              keyboardType="number-pad"
+              maxLength={20}
+              autoFocus
+            />
+            <View style={styles.pinModalButtons}>
+              <TouchableOpacity style={styles.pinModalButtonCancel} onPress={() => setPinModalVisible(false)}>
+                <Text style={styles.pinModalButtonCancelText}>Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.pinModalButtonOk} onPress={handlePinConfirm}>
+                <Text style={styles.pinModalButtonOkText}>Anzeigen</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
         {/* Header Card */}
@@ -312,12 +317,18 @@ export default function ChildInfoScreen() {
             </View>
 
             {child.passport_number && (
-              <InfoRow
-                icon="passport"
-                iconColor="#8B5CF6"
-                label="Reisepassnummer"
-                value={child.passport_number}
-              />
+              <TouchableOpacity style={styles.passportRow} onPress={handlePassportPress} activeOpacity={0.7}>
+                <MaterialCommunityIcons name="passport" size={22} color="#8B5CF6" />
+                <View style={styles.passportRowContent}>
+                  <Text style={styles.passportRowLabel}>Reisepassnummer</Text>
+                  <Text style={styles.passportRowValue}>
+                    {showPassportRevealed ? child.passport_number : SensitivePin.maskValue(child.passport_number)}
+                  </Text>
+                </View>
+                {!showPassportRevealed && (
+                  <Text style={styles.passportTapHint}>Tippen zum Anzeigen</Text>
+                )}
+              </TouchableOpacity>
             )}
           </View>
         )}
@@ -481,6 +492,86 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6B7280',
   },
+  passportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+  },
+  passportRowContent: { flex: 1 },
+  passportRowLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  passportRowValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
+  passportTapHint: {
+    fontSize: 11,
+    color: '#8B5CF6',
+    fontWeight: '500',
+  },
+  pinModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  pinModalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+  },
+  pinModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  pinModalInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 18,
+    marginBottom: 16,
+    letterSpacing: 4,
+  },
+  pinModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pinModalButtonCancel: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  pinModalButtonCancelText: { fontSize: 16, fontWeight: '600', color: '#6B7280' },
+  pinModalButtonOk: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+  },
+  pinModalButtonOkText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   section: {
     marginBottom: 28,
   },

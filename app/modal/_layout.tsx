@@ -39,6 +39,15 @@ export default function ModalLayout() {
           headerBackTitle: 'Zurück',
         }}
       />
+      <Stack.Screen
+        name="set-sensitive-pin"
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          headerTitle: 'PIN für sensible Daten',
+          headerBackTitle: 'Zurück',
+        }}
+      />
     </Stack>
   );
 }

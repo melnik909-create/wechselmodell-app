@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { COLORS } from '@/lib/constants';
 import { DOCUMENT_TYPE_LABELS, type DocumentType, type DocumentHolder } from '@/types';
 import { useResponsive } from '@/hooks/useResponsive';
+import ChildAvatar from '@/components/ChildAvatar';
 
 const DOCUMENT_TYPES: DocumentType[] = [
   'passport',
@@ -143,7 +144,7 @@ export default function DocumentsScreen() {
         {documentsByChild.map(({ child, documents: childDocs }) => (
           <View key={child.id} style={styles.childSection}>
             <View style={styles.childHeader}>
-              <MaterialCommunityIcons name="account-child" size={24} color={COLORS.primary} />
+              <ChildAvatar familyId={family?.id} child={child} size={40} />
               <Text style={styles.childName}>{child.name}</Text>
             </View>
 

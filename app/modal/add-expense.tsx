@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
@@ -34,6 +34,14 @@ export default function AddExpenseModal() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptAsset, setReceiptAsset] = useState<ImagePickerAsset | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Bei nur einem Kind automatisch zuordnen
+  useEffect(() => {
+    if (children?.length === 1) {
+      setSelectedChild(children[0].id);
+    }
+  }, [children]);
+
   async function handleSave() {
     const numAmount = parseFloat(amount.replace(',', '.'));
     if (isNaN(numAmount) || numAmount <= 0) {
@@ -170,8 +178,8 @@ export default function AddExpenseModal() {
             ))}
           </View>
 
-          {/* Child */}
-          {children && children.length > 0 && (
+          {/* Child – bei nur einem Kind automatisch zugeordnet, keine Auswahl nötig */}
+          {children && children.length > 1 && (
             <>
               <Text style={styles.label}>Kind</Text>
               <View style={styles.chipContainer}>
@@ -208,6 +216,11 @@ export default function AddExpenseModal() {
                 ))}
               </View>
             </>
+          )}
+          {children?.length === 1 && (
+            <View style={styles.autoChildHint}>
+              <Text style={styles.autoChildHintText}>Zuordnung: {children[0].name}</Text>
+            </View>
           )}
 
           {/* Split Type */}
@@ -366,6 +379,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 16,
+  },
+  autoChildHint: {
+    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+  },
+  autoChildHintText: {
+    fontSize: 14,
+    color: '#4F46E5',
+    fontWeight: '500',
   },
   chip: {
     paddingHorizontal: 12,

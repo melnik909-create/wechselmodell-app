@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
@@ -33,6 +33,10 @@ export default function SchoolModal() {
   const [taskPriority, setTaskPriority] = useState<TaskPriority>('medium');
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [taskDueDate, setTaskDueDate] = useState('');
+
+  useEffect(() => {
+    if (children?.length === 1) setSelectedChild(children[0].id);
+  }, [children]);
 
   // Filter school events
   const schoolEvents = events?.filter((e) => e.category === 'school') ?? [];
@@ -191,8 +195,8 @@ export default function SchoolModal() {
                 ))}
               </View>
 
-              {/* Child Selection */}
-              {children && children.length > 0 && (
+              {/* Child Selection – bei nur einem Kind automatisch zugeordnet */}
+              {children && children.length > 1 && (
                 <>
                   <Text style={styles.label}>Kind</Text>
                   <View style={styles.childContainer}>
@@ -225,6 +229,9 @@ export default function SchoolModal() {
                     ))}
                   </View>
                 </>
+              )}
+              {children?.length === 1 && (
+                <Text style={styles.autoChildHint}>Zuordnung: {children[0].name}</Text>
               )}
 
               <TouchableOpacity
@@ -561,6 +568,12 @@ const styles = StyleSheet.create({
   priorityText: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  autoChildHint: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '500',
+    marginBottom: 16,
   },
   childContainer: {
     flexDirection: 'row',
