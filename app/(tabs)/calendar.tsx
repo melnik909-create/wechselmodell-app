@@ -13,6 +13,7 @@ import { addMonths, subMonths, isSameMonth, startOfMonth, endOfMonth, format, pa
 import type { Parent, EventCategory } from '@/types';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/hooks/useResponsive';
+import { addEventToCalendar } from '@/lib/calendar-export';
 
 const WEEKDAY_HEADERS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -362,7 +363,22 @@ export default function CalendarScreen() {
                       )}
                     </View>
                   </View>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      addEventToCalendar({
+                        title: event.title,
+                        date: event.date,
+                        time: event.time,
+                        location: event.location,
+                        description: event.description,
+                      });
+                    }}
+                    style={{ padding: 6 }}
+                    hitSlop={8}
+                  >
+                    <MaterialCommunityIcons name="calendar-export" size={20} color="#4F46E5" />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               );
             })}

@@ -12,6 +12,7 @@ import { formatDayMonth } from '@/lib/date-utils';
 import { startOfMonth, format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { useResponsive } from '@/hooks/useResponsive';
+import { addEventToCalendar, addMultipleEventsToCalendar } from '@/lib/calendar-export';
 
 export default function EventsOverviewScreen() {
   const { contentMaxWidth } = useResponsive();
@@ -198,6 +199,25 @@ export default function EventsOverviewScreen() {
           </View>
         )}
 
+        {!isLoading && events && events.length > 0 && (
+          <TouchableOpacity
+            style={styles.exportAllButton}
+            onPress={() => addMultipleEventsToCalendar(
+              events.map((e) => ({
+                title: e.title,
+                date: e.date,
+                time: e.time,
+                location: e.location,
+                description: e.description,
+              }))
+            )}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="calendar-export" size={18} color="#4F46E5" />
+            <Text style={styles.exportAllButtonText}>Alle Termine in Kalender übertragen</Text>
+          </TouchableOpacity>
+        )}
+
         {!isLoading && monthKeys.length > 0 && monthKeys.map((monthKey) => {
           const monthEvents = eventsByMonth![monthKey];
           const monthLabel = format(
@@ -249,13 +269,27 @@ export default function EventsOverviewScreen() {
                       )}
                     </View>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteEvent(event.id, event.title)}
-                    style={styles.deleteButton}
-                    disabled={deleteEvent.isPending}
-                  >
-                    <MaterialCommunityIcons name="delete-outline" size={22} color="#EF4444" />
-                  </TouchableOpacity>
+                  <View style={styles.eventActions}>
+                    <TouchableOpacity
+                      onPress={() => addEventToCalendar({
+                        title: event.title,
+                        date: event.date,
+                        time: event.time,
+                        location: event.location,
+                        description: event.description,
+                      })}
+                      style={styles.calendarExportButton}
+                    >
+                      <MaterialCommunityIcons name="calendar-export" size={20} color="#4F46E5" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteEvent(event.id, event.title)}
+                      style={styles.deleteButton}
+                      disabled={deleteEvent.isPending}
+                    >
+                      <MaterialCommunityIcons name="delete-outline" size={22} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
             </View>
@@ -466,8 +500,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#9CA3AF',
   },
+  eventActions: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  calendarExportButton: {
+    padding: 8,
+  },
   deleteButton: {
     padding: 8,
+  },
+  exportAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  exportAllButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4F46E5',
   },
   fab: {
     position: 'absolute',
