@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Modal, Pressable } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/lib/auth';
 import { useExpenses, calculateBalance, useSettleExpenses } from '@/hooks/useExpenses';
 import { useFamilyMembers } from '@/hooks/useFamily';
@@ -131,6 +132,7 @@ function ExpenseCard({
 export default function ExpensesScreen() {
   const { familyMember, family } = useAuth();
   const { contentMaxWidth } = useResponsive();
+  const queryClient = useQueryClient();
   const showHint = useOnboardingHint();
   const { data: members } = useFamilyMembers();
   const [selectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -138,6 +140,12 @@ export default function ExpensesScreen() {
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const settleExpensesMutation = useSettleExpenses();
   const { data: settlementCycle } = useSettlementCycle();
+
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    }, [queryClient])
+  );
 
   const parentAMember = members?.find((m) => m.role === 'parent_a');
   const balance =
