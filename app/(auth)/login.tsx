@@ -87,6 +87,20 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={[styles.container, { maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }]}>
+            {Platform.OS === 'web' && APK_DOWNLOAD_URL && (
+              <TouchableOpacity
+                style={styles.apkTopBanner}
+                onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="cellphone-arrow-down" size={22} color="#fff" />
+                <Text style={styles.apkTopBannerText}>
+                  Jetzt die Android App herunterladen!
+                </Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#A5D6A7" />
+              </TouchableOpacity>
+            )}
+
             {/* Logo */}
             <View style={[styles.logoContainer, isLandscape && { marginBottom: 24 }]}>
               <MaterialCommunityIcons name="calendar-sync" size={isLandscape ? 40 : 60} color="#4F46E5" />
@@ -157,22 +171,6 @@ export default function LoginScreen() {
                 </Link>
               </View>
 
-              {Platform.OS === 'web' && APK_DOWNLOAD_URL && (
-                <TouchableOpacity
-                  style={styles.apkBanner}
-                  onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.apkBannerIcon}>
-                    <MaterialCommunityIcons name="android" size={28} color="#fff" />
-                  </View>
-                  <View style={styles.apkBannerContent}>
-                    <Text style={styles.apkBannerTitle}>Android App (Beta)</Text>
-                    <Text style={styles.apkBannerDesc}>APK herunterladen & installieren</Text>
-                  </View>
-                  <MaterialCommunityIcons name="download" size={22} color="#fff" />
-                </TouchableOpacity>
-              )}
 
               {/* App Description – oben */}
               <View style={styles.descriptionBox}>
@@ -346,40 +344,27 @@ const styles = StyleSheet.create({
     color: '#4F46E5',
     fontWeight: '600',
   },
-  apkBanner: {
+  apkTopBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 20,
-    padding: 14,
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: '#1B5E20',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
   },
-  apkBannerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2E7D32',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  apkBannerContent: {
-    flex: 1,
-  },
-  apkBannerTitle: {
+  apkTopBannerText: {
     fontSize: 15,
     fontWeight: '700',
     color: '#fff',
-  },
-  apkBannerDesc: {
-    fontSize: 12,
-    color: '#A5D6A7',
-    marginTop: 1,
+    flex: 1,
   },
   descriptionBox: {
     marginTop: 32,

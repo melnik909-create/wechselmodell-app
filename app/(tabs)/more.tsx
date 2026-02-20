@@ -194,6 +194,20 @@ export default function MoreScreen() {
           </TouchableOpacity>
         )}
 
+        {Platform.OS === 'web' && APK_DOWNLOAD_URL && (
+          <TouchableOpacity
+            style={styles.apkTopBanner}
+            onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="cellphone-arrow-down" size={22} color="#fff" />
+            <Text style={styles.apkTopBannerText}>
+              Jetzt die Android App herunterladen!
+            </Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="#A5D6A7" />
+          </TouchableOpacity>
+        )}
+
         {/* Children */}
         <Text style={styles.sectionTitle}>Kinder</Text>
         <SettingsItem
@@ -305,22 +319,6 @@ export default function MoreScreen() {
           onPress={handleDeleteAccount}
           danger
         />
-        {Platform.OS === 'web' && APK_DOWNLOAD_URL && (
-          <TouchableOpacity
-            style={styles.apkBanner}
-            onPress={() => Linking.openURL(APK_DOWNLOAD_URL)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.apkBannerIcon}>
-              <MaterialCommunityIcons name="android" size={24} color="#fff" />
-            </View>
-            <View style={styles.apkBannerContent}>
-              <Text style={styles.apkBannerTitle}>Android App (Beta)</Text>
-              <Text style={styles.apkBannerDesc}>APK herunterladen & auf dem Handy installieren</Text>
-            </View>
-            <MaterialCommunityIcons name="download" size={22} color="#fff" />
-          </TouchableOpacity>
-        )}
 
         <SettingsItem
           icon="logout"
@@ -514,36 +512,27 @@ const styles = StyleSheet.create({
   settingsLabelDanger: {
     color: '#EF4444',
   },
-  apkBanner: {
+  apkTopBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 14,
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: '#1B5E20',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  apkBannerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2E7D32',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  apkBannerContent: {
-    flex: 1,
-  },
-  apkBannerTitle: {
+  apkTopBannerText: {
     fontSize: 14,
     fontWeight: '700',
     color: '#fff',
-  },
-  apkBannerDesc: {
-    fontSize: 11,
-    color: '#A5D6A7',
-    marginTop: 1,
+    flex: 1,
   },
   versionFooter: {
     alignItems: 'center',
