@@ -52,7 +52,7 @@ export default function AdminVIPModal() {
     try {
       if (promoEntry.cloud) {
         const { data, error } = await supabase.rpc('grant_vip_access', {
-          user_id: user.id,
+          p_user_id: user.id,
         });
         if (error) throw error;
         const result = Array.isArray(data) ? data[0] : data;
