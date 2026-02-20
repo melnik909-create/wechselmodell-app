@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
-import { useCustodyPattern, useCustodyExceptions, useFamilyMembers, useEvents } from '@/hooks/useFamily';
+import { useCustodyPattern, useCustodyExceptions, useFamilyMembers, useEvents, useMyAttendances } from '@/hooks/useFamily';
 import { useUnreadActivity } from '@/hooks/useUnreadActivity';
 import { getCustodyForDate, buildExceptionMap } from '@/lib/custody-engine';
 import { getNext7Days, formatShortDay, formatDayMonth, formatFullDate } from '@/lib/date-utils';
@@ -20,11 +20,13 @@ export default function HomeScreen() {
   const { data: exceptions } = useCustodyExceptions();
   const { data: members } = useFamilyMembers();
   const { data: events } = useEvents();
+  const { data: myAttendances } = useMyAttendances();
   const { summary } = useUnreadActivity();
 
-  const pendingExceptions = exceptions?.filter((e) => e.status === 'pending') ?? [];
-  const schoolEventsFromOther = events?.filter(
-    (e) => e.category === 'school' && e.created_by !== user?.id
+  const pendingExceptions = exceptions?.filter((e) => e.status === 'proposed' && e.proposed_by !== user?.id) ?? [];
+  const answeredEventIds = new Set(myAttendances?.map((a) => a.event_id) ?? []);
+  const schoolEventsNeedingRsvp = events?.filter(
+    (e) => e.category === 'school' && e.created_by !== user?.id && !answeredEventIds.has(e.id)
   ) ?? [];
 
   const { data: pendingHandovers } = useQuery({
@@ -172,7 +174,7 @@ export default function HomeScreen() {
         )}
 
         {/* School Event Requests */}
-        {schoolEventsFromOther.length > 0 && (
+        {schoolEventsNeedingRsvp.length > 0 && (
           <TouchableOpacity
             style={styles.alertCard}
             onPress={() => router.push('/modal/school')}
@@ -183,7 +185,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.alertInfo}>
               <Text style={styles.alertTitle}>
-                Schultermine ({schoolEventsFromOther.length})
+                Schultermine ({schoolEventsNeedingRsvp.length})
               </Text>
               <Text style={styles.alertDesc}>Zu-/Absage ausstehend</Text>
             </View>

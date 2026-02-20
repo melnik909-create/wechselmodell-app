@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { registerForPushNotifications } from './notifications';
 import { EncryptionService } from './encryption';
+import { BiometricAuth } from './biometric-auth';
 import type { Profile, Family, FamilyMember } from '@/types';
 
 interface AuthState {
@@ -276,10 +277,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
-    // Clear encryption key from memory for security
     EncryptionService.clearMasterKey();
+    const rememberMe = await BiometricAuth.getRememberMe();
+    if (!rememberMe) {
+      await BiometricAuth.clearCredentials();
+    }
     await supabase.auth.signOut();
-    // Navigate to login screen
     router.replace('/(auth)/login');
   }
 

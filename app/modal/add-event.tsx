@@ -11,8 +11,8 @@ import { AppAlert } from '@/lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useChildren } from '@/hooks/useFamily';
-import { useAddEvent } from '@/hooks/useFamily';
+import { useChildren, useAddEvent } from '@/hooks/useFamily';
+import { useAuth } from '@/lib/auth';
 import { EVENT_CATEGORY_LABELS } from '@/types';
 import type { EventCategory } from '@/types';
 import DateInput from '@/components/DateInput';
@@ -34,6 +34,7 @@ export default function AddEventModal() {
   const [showChildPicker, setShowChildPicker] = useState(false);
 
   const { contentMaxWidth } = useResponsive();
+  const { family, user } = useAuth();
   const { data: children } = useChildren();
   const addEvent = useAddEvent();
 
@@ -81,6 +82,14 @@ export default function AddEventModal() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+        {!family && (
+          <View style={{ backgroundColor: '#FEF3C7', padding: 12, borderRadius: 8, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <MaterialCommunityIcons name="alert-circle" size={20} color="#92400E" />
+            <Text style={{ color: '#92400E', fontSize: 14, flex: 1 }}>
+              Keine Familie gefunden. Bitte erstelle zuerst eine Familie, bevor du Termine anlegst.
+            </Text>
+          </View>
+        )}
         {/* Title */}
         <Input
           label="Titel *"

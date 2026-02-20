@@ -4,7 +4,7 @@ import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEvents, useDeleteEvent, useCustodyExceptions, useEventAttendances, useSetAttendance, useFamilyMembers } from '@/hooks/useFamily';
+import { useEvents, useDeleteEvent, useCustodyExceptions, useEventAttendances, useSetAttendance, useFamilyMembers, useMyAttendances } from '@/hooks/useFamily';
 import { useAuth } from '@/lib/auth';
 import { COLORS } from '@/lib/constants';
 import { EVENT_CATEGORY_LABELS, type EventCategory, type AttendanceStatus, ATTENDANCE_STATUS_LABELS, type Event } from '@/types';
@@ -23,9 +23,13 @@ export default function EventsOverviewScreen() {
   const setAttendance = useSetAttendance();
   const [showAddMenu, setShowAddMenu] = useState(false);
 
-  const pendingExceptions = exceptions?.filter((e) => e.status === 'pending') ?? [];
-  const schoolEvents = events?.filter((e) => e.category === 'school') ?? [];
-  const schoolEventsNeedingRsvp = schoolEvents.filter((e) => e.created_by !== user?.id);
+  const { data: myAttendances } = useMyAttendances();
+
+  const pendingExceptions = exceptions?.filter((e) => e.status === 'proposed' && e.proposed_by !== user?.id) ?? [];
+  const answeredEventIds = new Set(myAttendances?.map((a) => a.event_id) ?? []);
+  const schoolEventsNeedingRsvp = events?.filter(
+    (e) => e.category === 'school' && e.created_by !== user?.id && !answeredEventIds.has(e.id)
+  ) ?? [];
 
   // Group events by month
   const eventsByMonth = events?.reduce((acc, event) => {

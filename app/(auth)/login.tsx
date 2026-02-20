@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Switch, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { Link, router } from 'expo-router';
@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useResponsive } from '@/hooks/useResponsive';
+import { BiometricAuth } from '@/lib/biometric-auth';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -14,6 +15,41 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [hasSavedCreds, setHasSavedCreds] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const available = await BiometricAuth.isAvailable();
+      setBiometricAvailable(available);
+      const creds = await BiometricAuth.getCredentials();
+      setHasSavedCreds(!!creds);
+      const rm = await BiometricAuth.getRememberMe();
+      setRememberMe(rm);
+    })();
+  }, []);
+
+  const handleBiometricLogin = useCallback(async () => {
+    const creds = await BiometricAuth.getCredentials();
+    if (!creds) {
+      AppAlert.alert('Hinweis', 'Keine gespeicherten Anmeldedaten. Bitte melde dich zuerst manuell an.');
+      return;
+    }
+    const success = await BiometricAuth.authenticate('Anmelden mit Biometrie');
+    if (!success) return;
+
+    setLoading(true);
+    try {
+      await signIn(creds.email, creds.password);
+      router.replace('/');
+    } catch (error: any) {
+      AppAlert.alert('Anmeldung fehlgeschlagen', error.message || 'Gespeicherte Daten ungültig. Bitte manuell anmelden.');
+      await BiometricAuth.clearCredentials();
+      setHasSavedCreds(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [signIn]);
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
@@ -24,6 +60,13 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signIn(email.trim(), password);
+      await BiometricAuth.setRememberMe(rememberMe);
+      if (rememberMe) {
+        await BiometricAuth.saveCredentials(email.trim(), password);
+        setHasSavedCreds(true);
+      } else {
+        await BiometricAuth.clearCredentials();
+      }
       router.replace('/');
     } catch (error: any) {
       AppAlert.alert('Anmeldung fehlgeschlagen', error.message || 'Bitte versuche es erneut.');
@@ -93,6 +136,18 @@ export default function LoginScreen() {
                   {loading ? 'Laden...' : 'Anmelden'}
                 </Text>
               </TouchableOpacity>
+
+              {biometricAvailable && hasSavedCreds && (
+                <TouchableOpacity
+                  style={styles.biometricButton}
+                  onPress={handleBiometricLogin}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons name="fingerprint" size={24} color="#4F46E5" />
+                  <Text style={styles.biometricButtonText}>Schnell-Login mit Biometrie</Text>
+                </TouchableOpacity>
+              )}
 
               <View style={styles.footer}>
                 <Text>Noch kein Konto? </Text>
@@ -246,6 +301,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+  },
+  biometricButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#4F46E5',
   },
   footer: {
     flexDirection: 'row',

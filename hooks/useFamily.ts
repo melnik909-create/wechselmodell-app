@@ -211,7 +211,8 @@ export function useAddEvent() {
 
   return useMutation({
     mutationFn: async (event: Omit<Event, 'id' | 'family_id' | 'created_by' | 'created_at' | 'updated_at'>) => {
-      if (!family || !user) throw new Error('No family or user');
+      if (!family) throw new Error('Keine Familie gefunden. Bitte erstelle zuerst eine Familie unter Einstellungen.');
+      if (!user) throw new Error('Nicht angemeldet. Bitte melde dich erneut an.');
       const { error } = await supabase.from('events').insert({
         ...event,
         family_id: family.id,
@@ -320,6 +321,23 @@ export function useEventAttendances(eventId: string) {
   });
 }
 
+export function useMyAttendances() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['my_attendances', user?.id],
+    queryFn: async (): Promise<EventAttendance[]> => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('event_attendances')
+        .select('*')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+}
+
 export function useSetAttendance() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -328,7 +346,6 @@ export function useSetAttendance() {
     mutationFn: async ({ eventId, status }: { eventId: string; status: AttendanceStatus }) => {
       if (!user) throw new Error('No user');
 
-      // Upsert attendance
       const { error } = await supabase
         .from('event_attendances')
         .upsert({
@@ -343,6 +360,7 @@ export function useSetAttendance() {
     },
     onSuccess: (_, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: ['event_attendances', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['my_attendances'] });
     },
   });
 }
