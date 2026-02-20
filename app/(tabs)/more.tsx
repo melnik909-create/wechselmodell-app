@@ -331,7 +331,7 @@ export default function MoreScreen() {
 
         {/* Version + verstecktes Impressum */}
         <View style={styles.versionFooter}>
-          <Text style={styles.versionText}>Wechselmodell-Planer v1.1</Text>
+          <Text style={styles.versionText}>Wechselmodell-Planer v1.0.2</Text>
           <TouchableOpacity
             onPress={() => AppAlert.alert(
               'Impressum',

@@ -28,7 +28,7 @@ export const EXCEPTION_COLORS = {
 
 export const APK_DOWNLOAD_URL = 'https://expo.dev/accounts/melnik909-create/projects/wechselmodell-app/builds';
 
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.0.2';
 
 export function generateInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No I/O/0/1 for readability
