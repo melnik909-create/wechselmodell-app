@@ -18,7 +18,6 @@
       "bundleIdentifier": "com.wechselmodellplaner.app",
       "infoPlist": {
         "UIBackgroundModes": [
-          "remote-notification",
           "remote-notification"
         ]
       }
@@ -33,25 +32,9 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "WAKE_LOCK",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
         "WAKE_LOCK"
       ],
       "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "wechselmodell-planer"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
         {
           "action": "VIEW",
           "autoVerify": true,
