@@ -57,112 +57,105 @@ serve(async (req) => {
 
     const familyIds = Array.from(new Set((memberships ?? []).map((m) => m.family_id)))
 
-    let deletedReceiptFiles = 0
-    let deletedExpenses = 0
-    let deletedEvents = 0
-    let deletedExceptions = 0
-    let deletedSchoolTasks = 0
-    let removedMemberships = 0
-    let deletedFamilies = 0
+    const log: Record<string, number> = {}
+
+    // Helper: safe delete from optional tables (ignores if table doesn't exist)
+    async function safeDelete(table: string, filters: Record<string, string>) {
+      try {
+        let q = supabaseAdmin.from(table).delete({ count: 'exact' })
+        for (const [k, v] of Object.entries(filters)) q = q.eq(k, v)
+        const { count } = await q
+        log[table] = (log[table] ?? 0) + (count ?? 0)
+      } catch { /* table may not exist */ }
+    }
+
+    async function safeUpdate(table: string, updates: Record<string, unknown>, filters: Record<string, string>) {
+      try {
+        let q = supabaseAdmin.from(table).update(updates)
+        for (const [k, v] of Object.entries(filters)) q = q.eq(k, v)
+        await q
+      } catch { /* ignore */ }
+    }
+
+    // 1) Delete user's event_attendances
+    await safeDelete('event_attendances', { user_id: user.id })
+
+    // 2) Delete user's push_tokens
+    await safeDelete('push_tokens', { user_id: user.id })
+
+    // 3) Delete user's documents
+    try {
+      const { data: docs } = await supabaseAdmin
+        .from('documents')
+        .select('id, file_url')
+        .eq('uploaded_by', user.id)
+      const docPaths = (docs ?? []).map((d) => d.file_url).filter(Boolean).map((u) => extractStoragePath(u as string))
+      if (docPaths.length > 0) {
+        await supabaseAdmin.storage.from('documents').remove(docPaths)
+      }
+      await safeDelete('documents', { uploaded_by: user.id })
+    } catch { /* ignore */ }
 
     for (const familyId of familyIds) {
       // Expenses + receipts in storage
-      const { data: expenses } = await supabaseAdmin
-        .from('expenses')
-        .select('id, receipt_url')
-        .eq('family_id', familyId)
-        .eq('paid_by', user.id)
-
-      const receiptPaths = (expenses ?? [])
-        .map((e) => e.receipt_url)
-        .filter(Boolean)
-        .map((u) => extractStoragePath(u as string))
-
-      if (receiptPaths.length > 0) {
-        const { error: removeError } = await supabaseAdmin.storage.from('receipts').remove(receiptPaths)
-        if (!removeError) deletedReceiptFiles += receiptPaths.length
-      }
-
-      const { count: expensesCount } = await supabaseAdmin
-        .from('expenses')
-        .delete({ count: 'exact' })
-        .eq('family_id', familyId)
-        .eq('paid_by', user.id)
-      deletedExpenses += expensesCount ?? 0
-
-      // Custody exceptions proposed by user
-      const { count: exceptionsCount } = await supabaseAdmin
-        .from('custody_exceptions')
-        .delete({ count: 'exact' })
-        .eq('family_id', familyId)
-        .eq('proposed_by', user.id)
-      deletedExceptions += exceptionsCount ?? 0
-
-      // Events created by user (optional table)
-      if ((await supabaseAdmin.from('events').select('id', { head: true, count: 'exact' }).limit(1)).error === null) {
-        const { count: eventsCount } = await supabaseAdmin
-          .from('events')
-          .delete({ count: 'exact' })
+      try {
+        const { data: expenses } = await supabaseAdmin
+          .from('expenses')
+          .select('id, receipt_url')
           .eq('family_id', familyId)
-          .eq('created_by', user.id)
-        deletedEvents += eventsCount ?? 0
-      }
+          .eq('paid_by', user.id)
 
-      // School tasks created by user (optional table)
-      if ((await supabaseAdmin.from('school_tasks').select('id', { head: true, count: 'exact' }).limit(1)).error === null) {
-        const { count: tasksCount } = await supabaseAdmin
-          .from('school_tasks')
-          .delete({ count: 'exact' })
-          .eq('family_id', familyId)
-          .eq('created_by', user.id)
-        deletedSchoolTasks += tasksCount ?? 0
-      }
+        const receiptPaths = (expenses ?? [])
+          .map((e) => e.receipt_url)
+          .filter(Boolean)
+          .map((u) => extractStoragePath(u as string))
 
-      // Handovers: keep history for the other parent, but remove references to this user
-      await supabaseAdmin.from('handovers').update({ from_parent: null }).eq('family_id', familyId).eq('from_parent', user.id)
-      await supabaseAdmin.from('handovers').update({ to_parent: null }).eq('family_id', familyId).eq('to_parent', user.id)
+        if (receiptPaths.length > 0) {
+          await supabaseAdmin.storage.from('receipts').remove(receiptPaths)
+          log['receipt_files'] = (log['receipt_files'] ?? 0) + receiptPaths.length
+        }
+      } catch { /* ignore */ }
 
-      // Settlements: keep history, remove reference
-      await supabaseAdmin.from('settlements').update({ settled_by: null }).eq('family_id', familyId).eq('settled_by', user.id)
+      await safeDelete('expenses', { family_id: familyId, paid_by: user.id })
+      await safeDelete('custody_exceptions', { family_id: familyId, proposed_by: user.id })
+      await safeDelete('events', { family_id: familyId, created_by: user.id })
+      await safeDelete('school_tasks', { family_id: familyId, created_by: user.id })
+      await safeDelete('contacts', { family_id: familyId, created_by: user.id })
+
+      // Handovers/settlements: try nulling references, ignore if NOT NULL constraint
+      await safeUpdate('handovers', { from_parent: null }, { family_id: familyId, from_parent: user.id })
+      await safeUpdate('handovers', { to_parent: null }, { family_id: familyId, to_parent: user.id })
+      await safeUpdate('settlements', { settled_by: null }, { family_id: familyId, settled_by: user.id })
 
       // Remove membership
-      const { count: memCount } = await supabaseAdmin
-        .from('family_members')
-        .delete({ count: 'exact' })
-        .eq('family_id', familyId)
-        .eq('user_id', user.id)
-      removedMemberships += memCount ?? 0
+      await safeDelete('family_members', { family_id: familyId, user_id: user.id })
 
       // If nobody left in the family, delete the family (cascades children etc.)
-      const { count: remainingMembers } = await supabaseAdmin
-        .from('family_members')
-        .select('id', { count: 'exact', head: true })
-        .eq('family_id', familyId)
+      try {
+        const { count: remainingMembers } = await supabaseAdmin
+          .from('family_members')
+          .select('id', { count: 'exact', head: true })
+          .eq('family_id', familyId)
 
-      if ((remainingMembers ?? 0) === 0) {
-        const { count: famDelCount } = await supabaseAdmin
-          .from('families')
-          .delete({ count: 'exact' })
-          .eq('id', familyId)
-        deletedFamilies += famDelCount ?? 0
-      }
+        if ((remainingMembers ?? 0) === 0) {
+          await safeDelete('families', { id: familyId })
+        }
+      } catch { /* ignore */ }
     }
 
     // Profile avatar cleanup (best effort)
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('avatar_url')
-      .eq('id', user.id)
-      .single()
+    try {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single()
 
-    if (profile?.avatar_url) {
-      try {
+      if (profile?.avatar_url) {
         const path = extractStoragePath(profile.avatar_url)
         await supabaseAdmin.storage.from('avatars').remove([path])
-      } catch {
-        // ignore
       }
-    }
+    } catch { /* ignore */ }
 
     // Remove profile
     await supabaseAdmin.from('profiles').delete().eq('id', user.id)
@@ -170,22 +163,16 @@ serve(async (req) => {
     // Finally delete the auth user
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(user.id)
     if (deleteAuthError) {
-      return new Response(JSON.stringify({ error: 'Failed to delete auth user' }), {
+      console.error('Failed to delete auth user:', deleteAuthError)
+      return new Response(JSON.stringify({ error: 'Failed to delete auth user', details: deleteAuthError.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      deletedReceiptFiles,
-      deletedExpenses,
-      deletedEvents,
-      deletedExceptions,
-      deletedSchoolTasks,
-      removedMemberships,
-      deletedFamilies,
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ success: true, ...log }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   } catch (error) {
     console.error('Error in delete_account:', error)
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
