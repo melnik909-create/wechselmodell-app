@@ -11,6 +11,7 @@ import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { COLORS, PARENT_COLORS } from '@/lib/constants';
@@ -22,6 +23,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 
 export default function SelectPatternScreen() {
   const { family, refreshFamily } = useAuth();
+  const queryClient = useQueryClient();
   const { contentMaxWidth } = useResponsive();
   const [selectedPattern, setSelectedPattern] = useState<PatternType>('7_7');
   const [startingParent, setStartingParent] = useState<Parent>('parent_a');
@@ -121,6 +123,7 @@ export default function SelectPatternScreen() {
       }
 
       await refreshFamily();
+      await queryClient.invalidateQueries({ queryKey: ['custody_pattern', family.id] });
       router.replace('/(onboarding)/add-children');
     } catch (error: any) {
       AppAlert.alert('Fehler', error.message || 'Muster konnte nicht gespeichert werden.');

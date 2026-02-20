@@ -12,6 +12,7 @@ import { TASK_PRIORITY_LABELS, ATTENDANCE_STATUS_LABELS, type TaskPriority, type
 import { formatDayMonth } from '@/lib/date-utils';
 import { COLORS } from '@/lib/constants';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useOnboardingHint } from '@/hooks/useOnboardingHint';
 
 export default function SchoolModal() {
   const { contentMaxWidth } = useResponsive();
@@ -25,6 +26,7 @@ export default function SchoolModal() {
   const deleteTask = useDeleteSchoolTask();
   const setAttendance = useSetAttendance();
 
+  const showHint = useOnboardingHint();
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -317,7 +319,13 @@ export default function SchoolModal() {
                 event={event}
                 userId={user?.id ?? ''}
                 members={members ?? []}
-                onSetAttendance={(status) => setAttendance.mutate({ eventId: event.id, status })}
+                onSetAttendance={async (status) => {
+                  try {
+                    await setAttendance.mutateAsync({ eventId: event.id, status });
+                  } catch (err: any) {
+                    AppAlert.alert('Fehler', err?.message || 'Zu-/Absage konnte nicht gespeichert werden. Wurde die Tabelle event_attendances angelegt?');
+                  }
+                }}
               />
             ))
           ) : (
@@ -328,14 +336,28 @@ export default function SchoolModal() {
           <TouchableOpacity
             style={styles.addEventButton}
             onPress={() => {
-              router.back();
-              router.push('/modal/add-event');
+              router.replace('/modal/add-event?category=school');
             }}
           >
             <MaterialCommunityIcons name="plus" size={16} color={COLORS.primary} />
             <Text style={styles.addEventButtonText}>Termin hinzufügen</Text>
           </TouchableOpacity>
         </View>
+
+        {showHint && (
+          <View style={styles.hintBox}>
+            <MaterialCommunityIcons name="lightbulb-outline" size={20} color="#92400E" />
+            <View style={styles.hintContent}>
+              <Text style={styles.hintTitle}>Schule & Termine – So geht's</Text>
+              <Text style={styles.hintText}>
+                Hier verwaltest du alle schulbezogenen Aufgaben und Termine.{'\n\n'}
+                Aufgaben: Erstelle To-Dos wie „Unterschrift für Klassenfahrt", „Schulmaterial besorgen" oder „Hausaufgaben kontrollieren". Setze Prioritäten und Fälligkeitsdaten.{'\n\n'}
+                Schul-Termine: Trage Elternsprechtage, Schulfeste oder Ausflüge ein. Beide Elternteile können mit RSVP (Ja/Nein/Vielleicht) antworten.{'\n\n'}
+                Besonders praktisch: Die Zu-/Absagen des anderen Elternteils werden sofort angezeigt – so seht ihr auf einen Blick, wer welchen Termin übernimmt und ob noch etwas offen ist.
+              </Text>
+            </View>
+          </View>
+        )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -700,5 +722,29 @@ const styles = StyleSheet.create({
   rsvpButtonTextSelected: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  hintBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 10,
+  },
+  hintContent: {
+    flex: 1,
+  },
+  hintTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#78350F',
+    lineHeight: 18,
   },
 });

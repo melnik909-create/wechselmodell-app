@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   addButton: {
     width: '100%',
-    aspectRatio: 4 / 3,
+    height: 60,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#D1D5DB',
@@ -183,6 +183,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    flexDirection: 'row',
   },
   addButtonText: {
     fontSize: 14,

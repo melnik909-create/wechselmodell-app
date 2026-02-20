@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, Pressable } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,6 +18,11 @@ const WEEKDAY_HEADERS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 export default function CalendarScreen() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [actionSheet, setActionSheet] = useState<{ visible: boolean; date: string; label: string }>({
+    visible: false,
+    date: '',
+    label: '',
+  });
   const { user, family } = useAuth();
   const { contentMaxWidth } = useResponsive();
   const { data: pattern } = useCustodyPattern();
@@ -82,31 +87,27 @@ export default function CalendarScreen() {
 
   function handleDayPress(day: Date, inCurrentMonth: boolean) {
     if (!inCurrentMonth) return;
+    setActionSheet({
+      visible: true,
+      date: format(day, 'yyyy-MM-dd'),
+      label: format(day, 'dd.MM.yyyy'),
+    });
+  }
 
-    const dateString = format(day, 'yyyy-MM-dd');
-
-    AppAlert.alert(
-      format(day, 'dd.MM.yyyy'),
-      'Was möchtest du erstellen?',
-      [
-        {
-          text: 'Normaler Termin',
-          onPress: () => router.push(`/modal/add-event?date=${dateString}`),
-        },
-        {
-          text: 'Schul-Termin',
-          onPress: () => router.push(`/modal/add-event?date=${dateString}&category=school`),
-        },
-        {
-          text: 'Ausnahme-Tag beantragen',
-          onPress: () => router.push(`/modal/add-exception?date=${dateString}`),
-        },
-        {
-          text: 'Abbrechen',
-          style: 'cancel',
-        },
-      ]
-    );
+  function handleActionSelect(action: 'event' | 'school' | 'exception') {
+    const dateString = actionSheet.date;
+    setActionSheet({ visible: false, date: '', label: '' });
+    switch (action) {
+      case 'event':
+        router.push(`/modal/add-event?date=${dateString}`);
+        break;
+      case 'school':
+        router.push(`/modal/add-event?date=${dateString}&category=school`);
+        break;
+      case 'exception':
+        router.push(`/modal/add-exception?date=${dateString}`);
+        break;
+    }
   }
 
   function goToPreviousMonth() {
@@ -374,6 +375,77 @@ export default function CalendarScreen() {
         )}
         </View>
       </ScrollView>
+
+      {/* Day Action Sheet */}
+      <Modal
+        visible={actionSheet.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActionSheet({ visible: false, date: '', label: '' })}
+      >
+        <Pressable
+          style={styles.actionSheetOverlay}
+          onPress={() => setActionSheet({ visible: false, date: '', label: '' })}
+        >
+          <Pressable style={styles.actionSheetCard}>
+            <Text style={styles.actionSheetTitle}>{actionSheet.label}</Text>
+            <Text style={styles.actionSheetSubtitle}>Was möchtest du erstellen?</Text>
+
+            <TouchableOpacity
+              style={styles.actionSheetOption}
+              onPress={() => handleActionSelect('event')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.actionSheetIconWrap, { backgroundColor: '#EEF2FF' }]}>
+                <MaterialCommunityIcons name="calendar-plus" size={22} color="#4F46E5" />
+              </View>
+              <View style={styles.actionSheetOptionText}>
+                <Text style={styles.actionSheetOptionTitle}>Standard-Termin</Text>
+                <Text style={styles.actionSheetOptionDesc}>Arzt, Geburtstag, Aktivität, ...</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionSheetOption}
+              onPress={() => handleActionSelect('school')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.actionSheetIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                <MaterialCommunityIcons name="school" size={22} color="#D97706" />
+              </View>
+              <View style={styles.actionSheetOptionText}>
+                <Text style={styles.actionSheetOptionTitle}>Schul- / Gemeinschaftstermin</Text>
+                <Text style={styles.actionSheetOptionDesc}>Elternsprechtag, Schulfest, Ausflug, ...</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionSheetOption}
+              onPress={() => handleActionSelect('exception')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.actionSheetIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                <MaterialCommunityIcons name="swap-horizontal" size={22} color="#EF4444" />
+              </View>
+              <View style={styles.actionSheetOptionText}>
+                <Text style={styles.actionSheetOptionTitle}>Ausnahme / Tagetausch</Text>
+                <Text style={styles.actionSheetOptionDesc}>Betreuungswechsel für diesen Tag vorschlagen</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionSheetCancel}
+              onPress={() => setActionSheet({ visible: false, date: '', label: '' })}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.actionSheetCancelText}>Abbrechen</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -655,5 +727,72 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
+  },
+
+  actionSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  actionSheetCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  actionSheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+    textAlign: 'center',
+  },
+  actionSheetSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  actionSheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  actionSheetIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  actionSheetOptionText: {
+    flex: 1,
+  },
+  actionSheetOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
+  },
+  actionSheetOptionDesc: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 1,
+  },
+  actionSheetCancel: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  actionSheetCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6B7280',
   },
 });

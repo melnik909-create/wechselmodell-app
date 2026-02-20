@@ -7,24 +7,28 @@ import { useChildren, useCustodyPattern } from '@/hooks/useFamily';
 
 export default function TabLayout() {
   const { family, isLoading: authLoading } = useAuth();
-  const { data: pattern, isLoading: patternLoading } = useCustodyPattern();
-  const { data: children, isLoading: childrenLoading } = useChildren();
+  const { data: pattern, isLoading: patternLoading, isFetching: patternFetching } = useCustodyPattern();
+  const { data: children, isLoading: childrenLoading, isFetching: childrenFetching } = useChildren();
 
   useEffect(() => {
     if (authLoading) return;
     if (!family?.id) return;
     if (patternLoading || childrenLoading) return;
+    if (patternFetching || childrenFetching) return;
 
+    // Wenn kein Pattern vorhanden ist, zu select-pattern navigieren
+    // Dies verhindert, dass der User in /(tabs) bleibt, wenn kein Pattern existiert
     if (!pattern) {
       router.replace('/(onboarding)/select-pattern');
       return;
     }
 
+    // Wenn keine Children vorhanden sind, zu add-children navigieren
     if (!children || children.length === 0) {
       router.replace('/(onboarding)/add-children');
       return;
     }
-  }, [authLoading, family?.id, patternLoading, childrenLoading, pattern, children?.length]);
+  }, [authLoading, family?.id, patternLoading, childrenLoading, patternFetching, childrenFetching, pattern, children?.length]);
 
   return (
     <Tabs

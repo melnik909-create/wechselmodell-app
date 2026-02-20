@@ -15,6 +15,7 @@ import { COLORS } from '@/lib/constants';
 import { format } from 'date-fns';
 import { getReceiptImageUrl } from '@/lib/image-upload';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useOnboardingHint } from '@/hooks/useOnboardingHint';
 
 const CATEGORY_ICONS: Record<string, string> = {
   clothing: 'tshirt-crew',
@@ -130,6 +131,7 @@ function ExpenseCard({
 export default function ExpensesScreen() {
   const { familyMember, family } = useAuth();
   const { contentMaxWidth } = useResponsive();
+  const showHint = useOnboardingHint();
   const { data: members } = useFamilyMembers();
   const [selectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const { data: expenses, isLoading } = useExpenses(selectedMonth);
@@ -312,6 +314,22 @@ export default function ExpensesScreen() {
             </View>
           )}
         </View>
+
+        {showHint && (
+          <View style={styles.hintBox}>
+            <MaterialCommunityIcons name="lightbulb-outline" size={20} color="#92400E" />
+            <View style={styles.hintContent}>
+              <Text style={styles.hintTitle}>So funktionieren Ausgaben</Text>
+              <Text style={styles.hintText}>
+                Erfasse gemeinsame Kosten für die Kinder – Kleidung, Arztbesuche, Sportverein, Nachhilfe, etc.{'\n\n'}
+                ⚖️ Verrechnung: Ausgaben werden automatisch gegeneinander verrechnet. Wer mehr bezahlt hat, dem wird der Differenzbetrag geschuldet.{'\n\n'}
+                🏷️ 50:50-Tag: Markierst du eine Ausgabe mit „50:50", gilt sie als bereits fair geteilt. Sie dient dann nur der Übersicht und wird nicht in den Saldo eingerechnet.{'\n\n'}
+                Beispiel: Mama kauft Winterschuhe (80 €), Papa zahlt Sportverein (60 €) → Papa schuldet Mama 10 €.{'\n\n'}
+                📊 Alle 2 Monate wird eine Abrechnung fällig – ihr geht „Quitt" und startet frisch.
+              </Text>
+            </View>
+          </View>
+        )}
         </View>
       </ScrollView>
 
@@ -619,5 +637,29 @@ const styles = StyleSheet.create({
   fullReceiptImage: {
     width: '90%',
     height: '80%',
+  },
+  hintBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 10,
+  },
+  hintContent: {
+    flex: 1,
+  },
+  hintTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#78350F',
+    lineHeight: 18,
   },
 });

@@ -1,11 +1,13 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEvents, useDeleteEvent } from '@/hooks/useFamily';
+import { useEvents, useDeleteEvent, useCustodyExceptions, useEventAttendances, useSetAttendance, useFamilyMembers } from '@/hooks/useFamily';
+import { useAuth } from '@/lib/auth';
 import { COLORS } from '@/lib/constants';
-import { EVENT_CATEGORY_LABELS, type EventCategory } from '@/types';
+import { EVENT_CATEGORY_LABELS, type EventCategory, type AttendanceStatus, ATTENDANCE_STATUS_LABELS, type Event } from '@/types';
 import { formatDayMonth } from '@/lib/date-utils';
 import { startOfMonth, format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -13,8 +15,17 @@ import { useResponsive } from '@/hooks/useResponsive';
 
 export default function EventsOverviewScreen() {
   const { contentMaxWidth } = useResponsive();
-  const { data: events, isLoading } = useEvents(); // No date filter - show all events
+  const { user } = useAuth();
+  const { data: events, isLoading } = useEvents();
+  const { data: exceptions } = useCustodyExceptions();
+  const { data: members } = useFamilyMembers();
   const deleteEvent = useDeleteEvent();
+  const setAttendance = useSetAttendance();
+  const [showAddMenu, setShowAddMenu] = useState(false);
+
+  const pendingExceptions = exceptions?.filter((e) => e.status === 'pending') ?? [];
+  const schoolEvents = events?.filter((e) => e.category === 'school') ?? [];
+  const schoolEventsNeedingRsvp = schoolEvents.filter((e) => e.created_by !== user?.id);
 
   // Group events by month
   const eventsByMonth = events?.reduce((acc, event) => {
@@ -74,15 +85,92 @@ export default function EventsOverviewScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Terminübersicht</Text>
         <TouchableOpacity
-          onPress={() => router.push('/modal/add-event')}
+          onPress={() => setShowAddMenu(true)}
           style={styles.addButton}
         >
           <MaterialCommunityIcons name="plus" size={24} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
+      {/* Add Menu Modal */}
+      <Modal visible={showAddMenu} transparent animationType="fade" onRequestClose={() => setShowAddMenu(false)}>
+        <Pressable style={styles.actionSheetOverlay} onPress={() => setShowAddMenu(false)}>
+          <View style={styles.actionSheetCard}>
+            <Text style={styles.actionSheetTitle}>Termin erstellen</Text>
+            <TouchableOpacity style={styles.actionSheetOption} onPress={() => { setShowAddMenu(false); router.push('/modal/add-event'); }}>
+              <View style={[styles.actionSheetIconWrap, { backgroundColor: '#EEF2FF' }]}>
+                <MaterialCommunityIcons name="calendar-plus" size={22} color={COLORS.primary} />
+              </View>
+              <View style={styles.actionSheetOptionText}>
+                <Text style={styles.actionSheetOptionTitle}>Standard-Termin</Text>
+                <Text style={styles.actionSheetOptionDesc}>Arzt, Sport, Geburtstag, etc.</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionSheetOption} onPress={() => { setShowAddMenu(false); router.push('/modal/add-event?category=school'); }}>
+              <View style={[styles.actionSheetIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                <MaterialCommunityIcons name="school" size={22} color="#F59E0B" />
+              </View>
+              <View style={styles.actionSheetOptionText}>
+                <Text style={styles.actionSheetOptionTitle}>Schul- / Gemeinschaftstermin</Text>
+                <Text style={styles.actionSheetOptionDesc}>Elternabend, Schulfest, etc.</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionSheetOption} onPress={() => { setShowAddMenu(false); router.push('/modal/add-exception'); }}>
+              <View style={[styles.actionSheetIconWrap, { backgroundColor: '#FEE2E2' }]}>
+                <MaterialCommunityIcons name="swap-horizontal" size={22} color="#EF4444" />
+              </View>
+              <View style={styles.actionSheetOptionText}>
+                <Text style={styles.actionSheetOptionTitle}>Ausnahme / Tagetausch</Text>
+                <Text style={styles.actionSheetOptionDesc}>Einmalige Änderung am Wechselplan</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionSheetCancel} onPress={() => setShowAddMenu(false)}>
+              <Text style={styles.actionSheetCancelText}>Abbrechen</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={{ maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' }}>
+
+        {/* Pending Exceptions */}
+        {pendingExceptions.length > 0 && (
+          <View style={styles.pendingSection}>
+            <Text style={styles.pendingSectionTitle}>Vorgeschlagene Ausnahmen ({pendingExceptions.length})</Text>
+            {pendingExceptions.map((exc) => (
+              <View key={exc.id} style={styles.pendingCard}>
+                <View style={[styles.pendingIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                  <MaterialCommunityIcons name="swap-horizontal" size={20} color="#F59E0B" />
+                </View>
+                <View style={styles.pendingInfo}>
+                  <Text style={styles.pendingTitle}>{formatDayMonth(parseISO(exc.date))}</Text>
+                  <Text style={styles.pendingDesc}>{exc.reason || 'Ausnahme vorgeschlagen'}</Text>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/modal/add-exception')} style={styles.pendingAction}>
+                  <Text style={styles.pendingActionText}>Ansehen</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* School Events needing RSVP */}
+        {schoolEventsNeedingRsvp.length > 0 && (
+          <View style={styles.pendingSection}>
+            <Text style={styles.pendingSectionTitle}>Schultermine (Anfragen)</Text>
+            {schoolEventsNeedingRsvp.map((event) => (
+              <EventRsvpCard
+                key={event.id}
+                event={event}
+                userId={user?.id ?? ''}
+                members={members ?? []}
+                onSetAttendance={(status) => setAttendance.mutate({ eventId: event.id, status })}
+              />
+            ))}
+          </View>
+        )}
+
         {isLoading && (
           <View style={styles.loading}>
             <Text style={styles.loadingText}>Laden...</Text>
@@ -176,13 +264,48 @@ export default function EventsOverviewScreen() {
       {!isLoading && events && events.length > 0 && (
         <TouchableOpacity
           style={styles.fab}
-          onPress={() => router.push('/modal/add-event')}
+          onPress={() => setShowAddMenu(true)}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="plus" size={28} color="#fff" />
         </TouchableOpacity>
       )}
     </SafeAreaView>
+  );
+}
+
+function EventRsvpCard({ event, userId, members, onSetAttendance }: {
+  event: Event; userId: string; members: any[];
+  onSetAttendance: (status: AttendanceStatus) => void;
+}) {
+  const { data: attendances } = useEventAttendances(event.id);
+  const myAttendance = attendances?.find((a) => a.user_id === userId);
+
+  return (
+    <View style={styles.pendingCard}>
+      <View style={[styles.pendingIconWrap, { backgroundColor: '#EEF2FF' }]}>
+        <MaterialCommunityIcons name="school" size={20} color={COLORS.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pendingTitle}>{event.title}</Text>
+        <Text style={styles.pendingDesc}>
+          {formatDayMonth(parseISO(event.date))}{event.time ? ` • ${event.time.substring(0, 5)}` : ''}
+        </Text>
+        <View style={styles.rsvpRow}>
+          {(['yes', 'no', 'maybe'] as AttendanceStatus[]).map((status) => (
+            <TouchableOpacity
+              key={status}
+              onPress={() => onSetAttendance(status)}
+              style={[styles.rsvpChip, myAttendance?.status === status && styles.rsvpChipSelected]}
+            >
+              <Text style={[styles.rsvpChipText, myAttendance?.status === status && styles.rsvpChipTextSelected]}>
+                {ATTENDANCE_STATUS_LABELS[status]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -357,5 +480,142 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  actionSheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  actionSheetCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  actionSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  actionSheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 8,
+    gap: 12,
+  },
+  actionSheetIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionSheetOptionText: {
+    flex: 1,
+  },
+  actionSheetOptionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
+  },
+  actionSheetOptionDesc: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  actionSheetCancel: {
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  actionSheetCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  pendingSection: {
+    marginBottom: 20,
+  },
+  pendingSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 10,
+  },
+  pendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 10,
+  },
+  pendingIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendingInfo: {
+    flex: 1,
+  },
+  pendingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111',
+  },
+  pendingDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  pendingAction: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+  },
+  pendingActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  rsvpRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  rsvpChip: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+  },
+  rsvpChipSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: '#EEF2FF',
+  },
+  rsvpChipText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  rsvpChipTextSelected: {
+    color: COLORS.primary,
+    fontWeight: '600',
   },
 });

@@ -223,6 +223,17 @@ export default function DocumentsScreen() {
             </Text>
           </View>
         )}
+
+        {/* Link to Edit Parent Labels */}
+        <TouchableOpacity
+          style={styles.parentLabelsLink}
+          onPress={() => router.push('/modal/edit-parent-labels')}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="account-edit" size={20} color={COLORS.primary} />
+          <Text style={styles.parentLabelsLinkText}>Elternnamen einstellen</Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -374,5 +385,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     paddingHorizontal: 32,
+  },
+  parentLabelsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  parentLabelsLinkText: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: '500',
   },
 });

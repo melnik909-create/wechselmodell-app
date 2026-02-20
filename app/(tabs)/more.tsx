@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Share, StyleSheet, Platform } from 'react-native';
 import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
@@ -138,11 +138,18 @@ export default function MoreScreen() {
               });
               if (error) throw new Error(error.message);
             } catch (e: any) {
-              AppAlert.alert('Fehler', e?.message || 'Konto konnte nicht geloescht werden.');
+              const msg = e?.message || '';
+              if (msg.includes('FunctionsFetchError') || msg.includes('Failed to send') || msg.includes('fetch')) {
+                AppAlert.alert(
+                  'Fehler',
+                  'Die Konto-Löschung ist aktuell nicht verfügbar (Server-Funktion nicht erreichbar).\n\nBitte kontaktiere den Support unter:\nschwabauer.dima@gmail.com'
+                );
+              } else {
+                AppAlert.alert('Fehler', msg || 'Konto konnte nicht geloescht werden.');
+              }
               return;
             }
 
-            // Try to sign out locally (even if user is already deleted)
             try {
               await signOut();
             } catch {}
@@ -274,7 +281,10 @@ export default function MoreScreen() {
           icon="shield-check"
           label="Datenschutz"
           description="DSGVO-konform in Frankfurt gespeichert"
-          onPress={() => AppAlert.alert('Datenschutz', 'Deine Daten werden DSGVO-konform in Frankfurt gespeichert.')}
+          onPress={() => AppAlert.alert(
+            'Datenschutz',
+            'Deine Daten werden DSGVO-konform in Frankfurt (EU) gespeichert.\n\n• Kein Handel mit deinen Daten\n• AES-256-Verschlüsselung für sensible Daten\n• Dein Recht auf Löschung wird respektiert\n• Schlüssel bleibt auf deinem Gerät'
+          )}
         />
         <SettingsItem
           icon="download"
@@ -295,6 +305,20 @@ export default function MoreScreen() {
           onPress={handleSignOut}
           danger
         />
+
+        {/* Version + verstecktes Impressum */}
+        <View style={styles.versionFooter}>
+          <Text style={styles.versionText}>Wechselmodell-Planer v1.1</Text>
+          <TouchableOpacity
+            onPress={() => AppAlert.alert(
+              'Impressum',
+              'Dima Schwabauer\nAm Dreiderfeld 54\n33719 Bielefeld\n\nKontakt: über die App-Einstellungen'
+            )}
+            activeOpacity={0.5}
+          >
+            <Text style={styles.impressumLink}>Impressum</Text>
+          </TouchableOpacity>
+        </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -466,5 +490,21 @@ const styles = StyleSheet.create({
   },
   settingsLabelDanger: {
     color: '#EF4444',
+  },
+  versionFooter: {
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 16,
+    paddingTop: 16,
+  },
+  versionText: {
+    fontSize: 11,
+    color: '#D1D5DB',
+    marginBottom: 4,
+  },
+  impressumLink: {
+    fontSize: 10,
+    color: '#D1D5DB',
+    textDecorationLine: 'underline',
   },
 });

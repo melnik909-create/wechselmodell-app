@@ -44,34 +44,48 @@ export const usePayment = () => {
         throw new Error('Keine aktive Sitzung');
       }
 
-      // Call Supabase Edge Function to create Stripe Checkout Session
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/stripe-checkout`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': SUPABASE_ANON_KEY || '',
-          },
-          body: JSON.stringify({
-            plan_type: planType,
-            mode: 'web',
-          }),
-        }
-      );
+      if (!SUPABASE_URL) {
+        throw new Error('Supabase URL ist nicht konfiguriert. Bitte .env prüfen.');
+      }
 
-      const data = await response.json();
+      let response: Response;
+      try {
+        response = await fetch(
+          `${SUPABASE_URL}/functions/v1/stripe-checkout`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': SUPABASE_ANON_KEY || '',
+            },
+            body: JSON.stringify({
+              plan_type: planType,
+              mode: 'web',
+            }),
+          }
+        );
+      } catch (fetchError) {
+        throw new Error(
+          'Verbindung zum Zahlungsserver fehlgeschlagen. Bitte prüfe deine Internetverbindung und versuche es erneut.'
+        );
+      }
+
+      let data: any;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(`Server-Antwort ungültig (Status ${response.status}). Bitte später erneut versuchen.`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Checkout-Session konnte nicht erstellt werden');
+        throw new Error(data.error || `Checkout-Session konnte nicht erstellt werden (${response.status})`);
       }
 
       if (!data.url) {
         throw new Error('Keine Checkout-URL erhalten');
       }
 
-      // Redirect to Stripe Checkout
       window.location.href = data.url;
 
       return {

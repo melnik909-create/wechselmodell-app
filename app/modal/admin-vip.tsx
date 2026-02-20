@@ -12,132 +12,68 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
+import { useQueryClient } from '@tanstack/react-query';
 import { AppAlert } from '@/lib/alert';
 
-interface VIPUser {
-  id: string;
-  email: string;
-  display_name: string;
-  plan: 'trial' | 'lifetime' | 'cloud_plus';
-  cloud_until: string | null;
-}
+const PROMO_CODES: Record<string, { plan: 'lifetime' | 'cloud_plus'; cloud: boolean; label: string }> = {
+  BETARIDER247: { plan: 'lifetime', cloud: false, label: 'Beta-Zugang (Software)' },
+  BETARIDER247FULL: { plan: 'lifetime', cloud: true, label: 'Beta-Zugang (Software + Cloud)' },
+};
 
 export default function AdminVIPModal() {
-  const [email, setEmail] = useState('');
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<VIPUser | null>(null);
-  const [searching, setSearching] = useState(false);
+  const [redeemed, setRedeemed] = useState(false);
+  const [redeemedLabel, setRedeemedLabel] = useState('');
 
-  async function handleSearch() {
-    if (!email.trim()) {
-      AppAlert.alert('Fehler', 'Bitte E-Mail eingeben.');
+  async function handleRedeemCode() {
+    const trimmed = code.trim().toUpperCase();
+
+    if (!trimmed) {
+      AppAlert.alert('Fehler', 'Bitte einen Promocode eingeben.');
       return;
     }
 
-    setSearching(true);
-    try {
-      // Search for user by email via RPC
-      const { data, error } = await supabase.rpc('search_user_by_email', {
-        search_email: email.trim(),
-      });
-
-      if (error) {
-        AppAlert.alert('Fehler', error.message || 'Suche fehlgeschlagen.');
-        setUser(null);
-        setSearching(false);
-        return;
-      }
-
-      const userData = Array.isArray(data) ? data[0] : data;
-
-      if (!userData) {
-        AppAlert.alert('Nicht gefunden', 'Kein User mit dieser E-Mail gefunden.');
-        setUser(null);
-        setSearching(false);
-        return;
-      }
-
-      setUser(userData as VIPUser);
-    } catch (error: any) {
-      AppAlert.alert('Fehler', error.message || 'Suche fehlgeschlagen.');
-    } finally {
-      setSearching(false);
+    const promoEntry = PROMO_CODES[trimmed];
+    if (!promoEntry) {
+      AppAlert.alert('Ungültiger Code', 'Dieser Promocode ist nicht gültig. Bitte überprüfe die Eingabe.');
+      return;
     }
-  }
 
-  async function handleGrantVIP() {
-    if (!user) return;
+    if (!user) {
+      AppAlert.alert('Fehler', 'Du musst angemeldet sein.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('grant_vip_access', {
-        user_id: user.id,
-      });
-
-      if (error) {
-        AppAlert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');
-        return;
+      if (promoEntry.cloud) {
+        const { data, error } = await supabase.rpc('grant_vip_access', {
+          user_id: user.id,
+        });
+        if (error) throw error;
+        const result = Array.isArray(data) ? data[0] : data;
+        if (!result?.success) throw new Error(result?.message || 'Freischaltung fehlgeschlagen.');
+      } else {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ plan: 'lifetime' })
+          .eq('id', user.id);
+        if (error) throw error;
       }
 
-      const result = Array.isArray(data) ? data[0] : data;
-
-      if (!result?.success) {
-        AppAlert.alert('Fehler', result?.message || 'VIP-Zugang vergeben fehlgeschlagen.');
-        return;
-      }
-
-      AppAlert.alert('✅ Erfolg', `VIP-Zugang vergeben für ${user.display_name}`);
-      // Refresh user data
-      setUser({
-        ...user,
-        plan: result.plan || 'lifetime',
-        cloud_until: result.cloud_until || '2099-12-31',
-      });
+      queryClient.invalidateQueries({ queryKey: ['entitlements'] });
+      setRedeemed(true);
+      setRedeemedLabel(promoEntry.label);
     } catch (error: any) {
-      AppAlert.alert('Fehler', error.message || 'VIP-Zugang vergeben fehlgeschlagen.');
+      AppAlert.alert('Fehler', error.message || 'Freischaltung fehlgeschlagen.');
     } finally {
       setLoading(false);
     }
   }
-
-  async function handleRevokeVIP() {
-    if (!user) return;
-
-    AppAlert.alert(
-      'Bestätigung',
-      `VIP-Status für ${user.display_name} wirklich zurücksetzen?`,
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Ja, zurücksetzen',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const { data, error } = await supabase.rpc('revoke_vip_access', {
-                user_id: user.id,
-              });
-
-              if (error) throw error;
-
-              AppAlert.alert('✅ Erfolg', `VIP-Status zurückgesetzt für ${user.display_name}`);
-              setUser({
-                ...user,
-                plan: 'trial',
-                cloud_until: null,
-              });
-            } catch (error: any) {
-              AppAlert.alert('Fehler', error.message || 'Zurücksetzen fehlgeschlagen.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  }
-
-  const isVIP = user?.plan === 'lifetime' && user?.cloud_until === '2099-12-31';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -147,110 +83,83 @@ export default function AdminVIPModal() {
           <TouchableOpacity onPress={() => router.back()}>
             <MaterialCommunityIcons name="close" size={24} color="#111" />
           </TouchableOpacity>
-          <Text style={styles.title}>Admin: VIP-Zugang</Text>
+          <Text style={styles.title}>Promocode einlösen</Text>
           <View style={{ width: 24 }} />
         </View>
 
-        {/* Search Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>User finden</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="E-Mail eingeben"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!searching && !loading}
-          />
-          <TouchableOpacity
-            style={[styles.button, (searching || loading) && styles.buttonDisabled]}
-            onPress={handleSearch}
-            disabled={searching || loading}
-          >
-            {searching ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>🔍 Suchen</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* User Details */}
-        {user && (
-          <View style={styles.section}>
-            <View style={styles.userCard}>
-              <View style={styles.userHeader}>
-                <View>
-                  <Text style={styles.userName}>{user.display_name}</Text>
-                  <Text style={styles.userEmail}>{user.email}</Text>
-                </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    isVIP ? styles.statusVIP : styles.statusTrial,
-                  ]}
-                >
-                  <Text style={styles.statusText}>
-                    {isVIP ? '⭐ VIP' : user.plan === 'cloud_plus' ? '☁️ Cloud' : '📝 Trial'}
-                  </Text>
-                </View>
+        {!redeemed ? (
+          <>
+            {/* Promocode Section */}
+            <View style={styles.promoSection}>
+              <View style={styles.promoIconWrap}>
+                <MaterialCommunityIcons name="ticket-percent" size={48} color="#4F46E5" />
               </View>
+              <Text style={styles.promoTitle}>Hast du einen Promocode?</Text>
+              <Text style={styles.promoSubtitle}>
+                Gib deinen Code ein, um alle Funktionen kostenlos freizuschalten.
+              </Text>
 
-              <View style={styles.userDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Plan:</Text>
-                  <Text style={styles.detailValue}>{user.plan}</Text>
-                </View>
-                {user.cloud_until && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Cloud bis:</Text>
-                    <Text style={styles.detailValue}>
-                      {new Date(user.cloud_until).toLocaleDateString('de-DE')}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Actions */}
-              <View style={styles.actions}>
-                {!isVIP ? (
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.actionButtonVIP]}
-                    onPress={handleGrantVIP}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Text style={styles.actionButtonText}>⭐ VIP Vergeben</Text>
-                    )}
-                  </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                placeholder="PROMOCODE"
+                value={code}
+                onChangeText={setCode}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleRedeemCode}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
                 ) : (
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.actionButtonRevoke]}
-                    onPress={handleRevokeVIP}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Text style={styles.actionButtonText}>❌ VIP Zurücksetzen</Text>
-                    )}
-                  </TouchableOpacity>
+                  <>
+                    <MaterialCommunityIcons name="check-decagram" size={20} color="#fff" />
+                    <Text style={styles.buttonText}>Code einlösen</Text>
+                  </>
                 )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Info */}
+            <View style={styles.infoSection}>
+              <Text style={styles.infoTitle}>So funktioniert's</Text>
+              <View style={styles.infoRow}>
+                <MaterialCommunityIcons name="numeric-1-circle" size={22} color="#4F46E5" />
+                <Text style={styles.infoText}>Promocode oben eingeben</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialCommunityIcons name="numeric-2-circle" size={22} color="#4F46E5" />
+                <Text style={styles.infoText}>„Code einlösen" tippen</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialCommunityIcons name="numeric-3-circle" size={22} color="#4F46E5" />
+                <Text style={styles.infoText}>Sofort freigeschaltet – kein Abo, keine Kosten</Text>
               </View>
             </View>
+          </>
+        ) : (
+          /* Success State */
+          <View style={styles.successSection}>
+            <View style={styles.successIconWrap}>
+              <MaterialCommunityIcons name="check-circle" size={64} color="#10B981" />
+            </View>
+            <Text style={styles.successTitle}>Erfolgreich freigeschaltet!</Text>
+            <Text style={styles.successSubtitle}>{redeemedLabel}</Text>
+            <Text style={styles.successDetail}>
+              Alle Funktionen stehen dir ab sofort kostenlos zur Verfügung. Viel Spaß!
+            </Text>
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.successButtonText}>Zurück zur App</Text>
+            </TouchableOpacity>
           </View>
         )}
-
-        {/* Info */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>ℹ️ Info</Text>
-          <Text style={styles.infoText}>
-            VIP-Zugang = Lifetime + Cloud Plus aktiviert (kostenlos für Test-User)
-          </Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -275,31 +184,58 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111',
   },
-  section: {
-    marginBottom: 24,
+
+  promoSection: {
+    alignItems: 'center',
+    paddingVertical: 24,
   },
-  sectionTitle: {
+  promoIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  promoTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  promoSubtitle: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#6B7280',
-    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
   input: {
-    borderWidth: 1,
+    width: '100%',
+    borderWidth: 2,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 2,
     backgroundColor: '#F9FAFB',
+    marginBottom: 16,
+    color: '#111',
   },
   button: {
+    width: '100%',
     backgroundColor: '#4F46E5',
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
+    gap: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -307,101 +243,73 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  userCard: {
+
+  infoSection: {
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
+    marginTop: 24,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  userHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  statusVIP: {
-    backgroundColor: '#FCD34D',
-  },
-  statusTrial: {
-    backgroundColor: '#DDD6FE',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#111',
-  },
-  userDetails: {
-    marginBottom: 16,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111',
-  },
-  actions: {
-    gap: 8,
-  },
-  actionButton: {
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  actionButtonVIP: {
-    backgroundColor: '#10B981',
-  },
-  actionButtonRevoke: {
-    backgroundColor: '#EF4444',
-  },
-  actionButtonText: {
-    color: '#fff',
+  infoTitle: {
     fontSize: 15,
     fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
   },
-  infoSection: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    padding: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E40AF',
-    marginBottom: 8,
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
   },
   infoText: {
-    fontSize: 13,
-    color: '#1E40AF',
+    fontSize: 14,
+    color: '#4B5563',
+    flex: 1,
+  },
+
+  successSection: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  successIconWrap: {
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#065F46',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  successSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10B981',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successDetail: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 32,
+    paddingHorizontal: 16,
+  },
+  successButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+  },
+  successButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

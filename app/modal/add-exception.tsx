@@ -3,6 +3,7 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Keyboa
 import { AppAlert } from '@/lib/alert';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -13,6 +14,7 @@ import { formatFullDate } from '@/lib/date-utils';
 import { EXCEPTION_REASON_LABELS, type ExceptionReason, type Parent } from '@/types';
 import DateInput from '@/components/DateInput';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useOnboardingHint } from '@/hooks/useOnboardingHint';
 
 const REASONS: ExceptionReason[] = ['vacation', 'sick', 'swap', 'holiday', 'other'];
 
@@ -24,6 +26,7 @@ export default function AddExceptionModal() {
   const { data: members } = useFamilyMembers();
   const queryClient = useQueryClient();
 
+  const showHint = useOnboardingHint();
   const [date, setDate] = useState(params.date || new Date().toISOString().split('T')[0]);
   const [reason, setReason] = useState<ExceptionReason>('swap');
   const [note, setNote] = useState('');
@@ -149,6 +152,20 @@ export default function AddExceptionModal() {
             multiline
             numberOfLines={3}
           />
+
+          {showHint && (
+            <View style={styles.hintBox}>
+              <MaterialCommunityIcons name="lightbulb-outline" size={20} color="#92400E" />
+              <View style={styles.hintContent}>
+                <Text style={styles.hintTitle}>So funktioniert's</Text>
+                <Text style={styles.hintText}>
+                  Du schlägst hier einen Tagetausch vor. Wähle das Datum, den Grund (z.B. Urlaub, Krankheit, Feiertag) und optional eine Notiz.{'\n\n'}
+                  Der andere Elternteil bekommt eine Benachrichtigung und kann den Vorschlag annehmen oder ablehnen. Erst nach Zustimmung wird der Tag im Kalender als Ausnahme (orange) markiert.{'\n\n'}
+                  Beispiel: Du bist am 15.03. auf Dienstreise → schlage einen Tausch vor, damit das Kind an dem Tag beim anderen Elternteil ist.
+                </Text>
+              </View>
+            </View>
+          )}
           </View>
         </ScrollView>
 
@@ -307,5 +324,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  hintBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 10,
+  },
+  hintContent: {
+    flex: 1,
+  },
+  hintTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#78350F',
+    lineHeight: 18,
   },
 });

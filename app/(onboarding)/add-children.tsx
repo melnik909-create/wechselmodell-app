@@ -12,6 +12,7 @@ import { AppAlert } from '@/lib/alert';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { useResponsive } from '@/hooks/useResponsive';
@@ -23,6 +24,7 @@ interface ChildEntry {
 
 export default function AddChildrenScreen() {
   const { family } = useAuth();
+  const queryClient = useQueryClient();
   const { contentMaxWidth } = useResponsive();
   const [children, setChildren] = useState<ChildEntry[]>([{ name: '', dateOfBirth: '' }]);
   const [loading, setLoading] = useState(false);
@@ -88,6 +90,15 @@ export default function AddChildrenScreen() {
       const { error } = await supabase.from('children').insert(inserts);
       if (error) throw error;
 
+      // Invalidate und refetch children query
+      await queryClient.invalidateQueries({ queryKey: ['children', family.id] });
+      await queryClient.refetchQueries({ queryKey: ['children', family.id] });
+      
+      // Stelle sicher, dass Pattern-Query auch refetched wird
+      await queryClient.refetchQueries({ queryKey: ['custody_pattern', family.id] });
+
+      // Zu /(tabs) navigieren - (tabs)/_layout.tsx prüft Pattern und Children
+      // und leitet weiter, falls etwas fehlt
       router.replace('/(tabs)');
     } catch (error: any) {
       AppAlert.alert('Fehler', error.message || 'Kinder konnten nicht gespeichert werden.');

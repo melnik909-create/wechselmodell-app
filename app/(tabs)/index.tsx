@@ -3,21 +3,46 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
-import { useCustodyPattern, useCustodyExceptions, useFamilyMembers } from '@/hooks/useFamily';
+import { useCustodyPattern, useCustodyExceptions, useFamilyMembers, useEvents } from '@/hooks/useFamily';
 import { useUnreadActivity } from '@/hooks/useUnreadActivity';
 import { getCustodyForDate, buildExceptionMap } from '@/lib/custody-engine';
 import { getNext7Days, formatShortDay, formatDayMonth, formatFullDate } from '@/lib/date-utils';
 import { PARENT_COLORS, COLORS } from '@/lib/constants';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import type { Parent } from '@/types';
 
 export default function HomeScreen() {
-  const { profile, family } = useAuth();
+  const { profile, family, user } = useAuth();
   const { contentMaxWidth } = useResponsive();
   const { data: pattern } = useCustodyPattern();
   const { data: exceptions } = useCustodyExceptions();
   const { data: members } = useFamilyMembers();
+  const { data: events } = useEvents();
   const { summary } = useUnreadActivity();
+
+  const pendingExceptions = exceptions?.filter((e) => e.status === 'pending') ?? [];
+  const schoolEventsFromOther = events?.filter(
+    (e) => e.category === 'school' && e.created_by !== user?.id
+  ) ?? [];
+
+  const { data: pendingHandovers } = useQuery({
+    queryKey: ['handovers_pending_home', family?.id],
+    queryFn: async () => {
+      if (!family || !user) return [];
+      const { data, error } = await supabase
+        .from('handovers')
+        .select('id, date, from_parent, to_parent')
+        .eq('family_id', family.id)
+        .eq('status', 'pending')
+        .eq('to_parent', user.id)
+        .order('date');
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!family && !!user,
+  });
 
   const today = new Date();
   const next7Days = getNext7Days(today);
@@ -28,15 +53,17 @@ export default function HomeScreen() {
     : null;
 
   const parentName = (parent: Parent) => {
-    // First check for custom label
     if (parent === 'parent_a' && family?.parent_a_label) return family.parent_a_label;
     if (parent === 'parent_b' && family?.parent_b_label) return family.parent_b_label;
-    // Then check profile name
     const member = members?.find((m) => m.role === parent);
     if (member?.profile?.display_name) return member.profile.display_name;
-    // Fallback
     return parent === 'parent_a' ? 'Elternteil A' : 'Elternteil B';
-    };
+  };
+
+  const parentInitial = (parent: Parent) => {
+    const name = parentName(parent);
+    return name.charAt(0).toUpperCase();
+  };
 
   const unreadLabel = (() => {
     const parts: string[] = [];
@@ -113,7 +140,7 @@ export default function HomeScreen() {
                       ]}
                     >
                       <Text style={styles.dayBadgeText}>
-                        {parent === 'parent_a' ? 'A' : 'B'}
+                        {parentInitial(parent)}
                       </Text>
                     </View>
                     <Text style={styles.dayDate}>{formatDayMonth(day)}</Text>
@@ -122,6 +149,66 @@ export default function HomeScreen() {
               })}
             </View>
           </View>
+        )}
+
+        {/* Pending Exceptions */}
+        {pendingExceptions.length > 0 && (
+          <TouchableOpacity
+            style={styles.alertCard}
+            onPress={() => router.push('/modal/add-exception')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.alertIcon, { backgroundColor: '#FEF3C7' }]}>
+              <MaterialCommunityIcons name="swap-horizontal" size={20} color="#F59E0B" />
+            </View>
+            <View style={styles.alertInfo}>
+              <Text style={styles.alertTitle}>
+                Vorgeschlagene Ausnahmen ({pendingExceptions.length})
+              </Text>
+              <Text style={styles.alertDesc}>Warten auf deine Antwort</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
+
+        {/* School Event Requests */}
+        {schoolEventsFromOther.length > 0 && (
+          <TouchableOpacity
+            style={styles.alertCard}
+            onPress={() => router.push('/modal/school')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.alertIcon, { backgroundColor: '#EEF2FF' }]}>
+              <MaterialCommunityIcons name="school" size={20} color={COLORS.primary} />
+            </View>
+            <View style={styles.alertInfo}>
+              <Text style={styles.alertTitle}>
+                Schultermine ({schoolEventsFromOther.length})
+              </Text>
+              <Text style={styles.alertDesc}>Zu-/Absage ausstehend</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
+
+        {/* Pending Handover Confirmations */}
+        {pendingHandovers && pendingHandovers.length > 0 && (
+          <TouchableOpacity
+            style={styles.alertCard}
+            onPress={() => router.push('/(tabs)/handover')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.alertIcon, { backgroundColor: '#FEF3C7' }]}>
+              <MaterialCommunityIcons name="package-variant" size={20} color="#92400E" />
+            </View>
+            <View style={styles.alertInfo}>
+              <Text style={styles.alertTitle}>
+                Mitgabe bestätigen ({pendingHandovers.length})
+              </Text>
+              <Text style={styles.alertDesc}>Eingehende Übergabe quittieren</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
         )}
 
         {/* Quick Actions */}
@@ -342,6 +429,37 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#9CA3AF',
     marginTop: 4,
+  },
+  alertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 12,
+  },
+  alertIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertInfo: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111',
+  },
+  alertDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   },
   sectionTitle: {
     fontSize: 14,

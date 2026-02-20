@@ -8,54 +8,76 @@ import { useResponsive } from '@/hooks/useResponsive';
 
 const GUIDE_SECTIONS = [
   {
-    title: 'Kalender & Betreuungsmodell',
-    icon: 'calendar',
-    content: `Der Kalender zeigt, wer wann die Kinder betreut.\n\n• Farbige Tage zeigen die Betreuung\n• Orange Punkte = Ausnahmen\n• Blaue Punkte = Termine\n\nDu kannst das Modell jederzeit in den Einstellungen ändern.`,
+    title: 'Kalender & Wechselplan',
+    icon: 'calendar-sync',
+    color: '#4F46E5',
+    content: `Dein Betreuungskalender auf einen Blick – klar, farbig und sofort verständlich.\n\n📅  Farbige Tage zeigen an, wer gerade dran ist\n🟠  Orange markierte Tage = Ausnahmen (z.B. getauschte Tage)\n🔵  Blaue Punkte = eingetragene Termine\n\n💡 Beispiel: Du siehst sofort, dass nächsten Mittwoch Papa dran ist – auch wenn sonst Mama-Woche wäre, weil ihr einen Tausch vereinbart habt.\n\nDas Modell (7/7, 2/2/5/5, 2/2/3, 14/14) kannst du jederzeit unter „Mehr" → „Betreuungsmodell ändern" anpassen.`,
   },
   {
-    title: 'Termine erstellen',
+    title: 'Termine anlegen',
     icon: 'calendar-plus',
-    content: `Tippe auf einen Tag im Kalender, um einen Termin zu erstellen.\n\n• Wähle zwischen Schul-Termin und normalem Termin\n• Füge Titel, Uhrzeit, Kategorie und Ort hinzu\n• Alle Termine sind für beide Elternteile sichtbar\n\nÖffne die Terminübersicht über die Schnellaktionen.`,
+    color: '#059669',
+    content: `Beide Elternteile sehen alle Termine – keine doppelten WhatsApp-Nachrichten mehr.\n\n📌 So geht's:\n1. Tippe auf einen Tag im Kalender\n2. Wähle „Termin" oder „Schul-Termin"\n3. Trage Titel, Uhrzeit, Ort und Kategorie ein\n\n💡 Beispiel: „Elternsprechtag, Fr 14:30, Grundschule" – beide Eltern sehen den Termin, können zusagen oder absagen (RSVP).\n\n🔔 Tipp: Nutze die Schnellaktionen auf der Startseite, um direkt zur Terminübersicht zu gelangen.`,
   },
   {
     title: 'Ausnahmen vorschlagen',
     icon: 'calendar-alert',
-    content: `Wenn du einen Tag tauschen möchtest:\n\n1. Tippe auf "Ausnahme" in den Schnellaktionen\n2. Wähle das Datum und den Grund\n3. Der andere Elternteil muss akzeptieren\n\nSobald akzeptiert, wird der Tag orange markiert.`,
+    color: '#F59E0B',
+    content: `Mal muss ein Tag getauscht werden – kein Problem, aber transparent.\n\n📌 So funktioniert's:\n1. Tippe auf „Ausnahme" (Schnellaktionen oder Kalender)\n2. Wähle Datum und Grund (Urlaub, Krankheit, Tausch, Feiertag, Sonstiges)\n3. Der andere Elternteil erhält eine Benachrichtigung\n4. Erst nach Zustimmung wird der Tag getauscht\n\n💡 Beispiel: Du möchtest am 15.03. tauschen, weil du beruflich verreist. Der andere Elternteil sieht „Tausch vorgeschlagen – Grund: Dienstreise" und kann akzeptieren oder ablehnen.\n\n✅ Akzeptierte Ausnahmen werden im Kalender orange markiert.`,
   },
   {
     title: 'Übergabe-Checklisten',
     icon: 'clipboard-check',
-    content: `Vor jeder Übergabe kannst du eine Checkliste erstellen:\n\n• Kleidung, Medikamente, Hausaufgaben, etc.\n• Füge Fotos hinzu (z.B. von gepackten Sachen)\n• Hake Punkte ab wenn erledigt\n\nSo vergisst niemand etwas Wichtiges!`,
+    color: '#8B5CF6',
+    content: `Damit zwischen Tür und Angel nichts verloren geht.\n\n📌 So nutzt du Übergaben:\n1. Erstelle vor der Übergabe eine neue Mitgabe-Liste\n2. Items werden automatisch aus der letzten Übergabe übernommen\n3. Füge weitere Items hinzu (z.B. „Regenjacke", „Lieblingsteddy")\n4. Der empfangende Elternteil quittiert jedes Item einzeln\n\n💡 Beispiel: Papa packt Wechselkleidung, Medikamente und Schulranzen ein. Mama bestätigt beim Abholen: ✅ Kleidung, ✅ Medikamente, ✅ Schulranzen.\n\n📸 Tipp: Fotos von gepackten Sachen helfen bei Unklarheiten.`,
   },
   {
-    title: 'Ausgaben teilen',
+    title: 'Ausgaben fair teilen',
     icon: 'currency-eur',
-    content: `Erfasse gemeinsame Kosten für die Kinder:\n\n• Betrag, Kategorie, Belege\n• Wähle die Aufteilung (50/50 oder custom)\n• Sieh den aktuellen Saldo\n• Exportiere als PDF oder CSV\n\nDie App berechnet automatisch, wer wem was schuldet.`,
+    color: '#EF4444',
+    content: `Gemeinsame Kosten transparent erfassen – Schluss mit Zettelwirtschaft.\n\n📌 So funktioniert's:\n1. Tippe auf „Ausgabe hinzufügen"\n2. Trage Betrag, Kategorie und Beschreibung ein\n3. Optional: Beleg fotografieren\n4. Wähle die Aufteilung\n\n⚖️ Verrechnung:\n• Standard: Ausgaben werden gegeneinander verrechnet. Wer mehr bezahlt hat, dem wird der Differenzbetrag geschuldet.\n• 50:50-Tag: Wenn du eine Ausgabe mit „50:50" markierst, gilt sie als bereits fair geteilt und dient nur der Übersicht.\n\n💡 Beispiel: Mama kauft Winterschuhe (80 €), Papa zahlt Sportverein (60 €). Saldo: Papa schuldet Mama 10 €.\n\n📊 Alle 2 Monate wird eine Abrechnung fällig – ihr geht „Quitt" und startet frisch.`,
+  },
+  {
+    title: 'Schule & Termine',
+    icon: 'school',
+    color: '#0EA5E9',
+    content: `Schultermine, Aufgaben und Erinnerungen – damit nichts untergeht.\n\n📌 Aufgaben (To-Dos):\n• Hausaufgaben, Unterschriften, Materialien besorgen\n• Priorität setzen (hoch/mittel/niedrig)\n• Fälligkeitsdatum + Kind zuordnen\n\n📌 Schul-Termine:\n• Elternsprechtag, Schulfest, Ausflug, etc.\n• RSVP: Wer kann teilnehmen? (Ja / Nein / Vielleicht)\n• Beide Elternteile sehen sofort, wer zugesagt hat\n\n👀 Besonders praktisch: Schultermine des anderen Elternteils werden farbig markiert – so siehst du auf einen Blick, wer wann wo hingeht und ob noch ein Termin offen ist.\n\n💡 Beispiel: Mama sagt „Ja" zum Elternsprechtag → Papa sieht das sofort und weiß, dass es abgedeckt ist.`,
   },
   {
     title: 'Kind-Informationen',
     icon: 'account-child',
-    content: `Speichere wichtige Infos:\n\n• Gesundheit: Allergien, Blutgruppe, Arzt\n• Bildung: Schule, Kita\n• Dokumente: Reisepassnummer\n• Notfallkontakte\n• Profilbild\n\nBeide Elternteile haben immer Zugriff auf diese Infos.`,
+    color: '#10B981',
+    content: `Alle wichtigen Daten der Kinder an einem Ort – immer aktuell, immer verfügbar.\n\n📋 Was du speichern kannst:\n• 🏥 Gesundheit: Allergien, Blutgruppe, Kinderarzt, Versicherungsnummer\n• 🏫 Bildung: Schule/Kita, Adresse, Telefon\n• 📄 Dokumente: Reisepassnummer, Ausweisnummer\n• 📞 Notfallkontakte: Großeltern, Babysitter, etc.\n• 📸 Profilbild\n\n🔒 Sensible Daten (Pass, Versicherung, Gesundheit) werden mit AES-256 verschlüsselt – der Schlüssel bleibt auf deinem Gerät.`,
   },
   {
     title: 'Betreuungsmodell ändern',
     icon: 'cog',
-    content: `Du kannst das Modell jederzeit ändern:\n\n1. Gehe zu "Mehr" > "Betreuungsmodell ändern"\n2. Wähle ein neues Muster (7/7, 2/2/5/5, 2/2/3, 14/14)\n3. Bestimme den Starttermin\n\nDas neue Modell gilt ab dem gewählten Datum.`,
+    color: '#6366F1',
+    content: `Flexibel bleiben – das Modell passt sich eurem Leben an.\n\n📌 So änderst du es:\n1. Gehe zu „Mehr" → „Betreuungsmodell ändern"\n2. Wähle ein neues Muster:\n   • 7/7 – Wochenrhythmus\n   • 2/2/5/5 – kurze + lange Blöcke\n   • 2/2/3 – gleichmäßiger Wechsel\n   • 14/14 – Zwei-Wochen-Rhythmus\n3. Lege den Starttag und den ersten Elternteil fest\n\n💡 Tipp: Du siehst eine 14-Tage-Vorschau, bevor du bestätigst.\n\nDas neue Modell gilt ab dem gewählten Datum – bisherige Einträge bleiben erhalten.`,
   },
   {
-    title: 'Übergabetag konfigurieren',
+    title: 'Übergabetag festlegen',
     icon: 'calendar-sync',
-    content: `Lege fest, an welchem Wochentag die Übergaben stattfinden:\n\n1. Gehe zu "Mehr" > "Übergabetag konfigurieren"\n2. Wähle den Wochentag (z.B. Freitag)\n\nDer Betreuungsplan passt sich automatisch an.`,
+    color: '#F97316',
+    content: `An welchem Tag wechseln die Kinder? Einmal einstellen – der Kalender passt sich an.\n\n📌 So geht's:\n1. Gehe zu „Mehr" → „Übergabetag konfigurieren"\n2. Wähle den Wochentag (z.B. Freitag)\n\n💡 Beispiel: Übergabe freitags nach der Schule – die Kinder gehen direkt zum anderen Elternteil. Im Kalender ist der Wechsel klar markiert.`,
   },
   {
-    title: 'Datenschutz & Sicherheit',
+    title: 'Export & Dokumentation',
+    icon: 'file-export',
+    color: '#6B7280',
+    content: `Für den Überblick oder als Nachweis – alles exportierbar.\n\n📌 Du kannst exportieren:\n• Ausgabenübersicht als PDF oder CSV\n• Kalender-Ansichten\n• Übergabe-Protokolle\n\n💡 Praktisch z.B. für:\n• Steuererklärung (Kinderbetreuungskosten)\n• Abstimmung mit Anwalt oder Mediator\n• Eigene Dokumentation`,
+  },
+  {
+    title: 'Sicherheit & Verschlüsselung',
     icon: 'shield-lock',
-    content: `Deine sensiblen Daten sind bei uns sicher:\n\n• AES-256-Verschlüsselung für Reisepassnummern, Versicherungsnummern, Gesundheitsdaten und Kontaktinformationen\n• Verschlüsselungsschlüssel bleibt nur auf deinem Gerät\n• Selbst bei einem Datenbankzugriff sind deine Daten unleserlich\n• Automatische Verschlüsselung im Hintergrund\n\nDeine Privatsphäre hat oberste Priorität.`,
+    color: '#1E40AF',
+    content: `Deine sensiblen Daten sind mit modernster Technik geschützt.\n\n🔐 AES-256-Verschlüsselung für:\n• Reisepassnummern\n• Versicherungsnummern\n• Gesundheitsdaten\n• Kontaktinformationen\n\n🔑 Der Verschlüsselungsschlüssel bleibt ausschließlich auf deinem Gerät – selbst wir können die Daten nicht lesen.\n\n✅ Auch bei einem hypothetischen Datenbankzugriff wären deine Daten komplett unleserlich.`,
   },
   {
     title: 'Datenschutz & DSGVO',
     icon: 'shield-check',
-    content: `Wir nehmen Datenschutz ernst:\n\n• Vollständig konform mit der DSGVO\n• Es wird kein Handel mit deinen Daten getrieben\n• Deine Daten gehören dir und werden niemals verkauft\n• Sichere Cloud-Speicherung in der EU\n• Transparenz und Kontrolle über deine Daten`,
+    color: '#059669',
+    content: `Deine Daten gehören dir – Punkt.\n\n🇪🇺 Vollständig DSGVO-konform\n🚫 Kein Handel mit deinen Daten – niemals\n☁️ Sichere Cloud-Speicherung in der EU\n🔍 Volle Transparenz: Du kannst jederzeit einsehen, was gespeichert ist\n🗑️ Dein Recht auf Löschung wird respektiert\n\nWir verdienen Geld durch die App – nicht durch deine Daten.`,
   },
 ];
 
@@ -96,11 +118,11 @@ export default function GuideScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.sectionLeft}>
-                <View style={[styles.iconContainer, { backgroundColor: COLORS.primary + '15' }]}>
+                <View style={[styles.iconContainer, { backgroundColor: (section.color ?? COLORS.primary) + '15' }]}>
                   <MaterialCommunityIcons
                     name={section.icon as any}
                     size={24}
-                    color={COLORS.primary}
+                    color={section.color ?? COLORS.primary}
                   />
                 </View>
                 <Text style={styles.sectionTitle}>{section.title}</Text>

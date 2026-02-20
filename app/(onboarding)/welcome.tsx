@@ -31,7 +31,7 @@ export default function WelcomeScreen() {
         </Link>
 
         <Link href="/(onboarding)/join-family" asChild>
-          <TouchableOpacity style={[styles.button, styles.buttonSecondary]}>
+          <TouchableOpacity style={StyleSheet.flatten([styles.button, styles.buttonSecondary])}>
             <Text style={styles.buttonTextSecondary}>Familie beitreten</Text>
           </TouchableOpacity>
         </Link>

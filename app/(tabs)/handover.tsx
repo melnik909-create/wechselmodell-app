@@ -22,6 +22,7 @@ import { COLORS } from '@/lib/constants';
 import { HANDOVER_CATEGORY_LABELS } from '@/types';
 import type { Handover, HandoverItem } from '@/types';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useOnboardingHint } from '@/hooks/useOnboardingHint';
 
 export default function HandoverScreen() {
   const { family, user } = useAuth();
@@ -29,6 +30,7 @@ export default function HandoverScreen() {
   const { data: members } = useFamilyMembers();
   const queryClient = useQueryClient();
 
+  const showHint = useOnboardingHint();
   const [selectedHandover, setSelectedHandover] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [showAddInput, setShowAddInput] = useState(false);
@@ -635,6 +637,20 @@ export default function HandoverScreen() {
               <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
           )}
+
+          {showHint && (
+            <View style={styles.hintBox}>
+              <MaterialCommunityIcons name="lightbulb-outline" size={20} color="#92400E" />
+              <View style={styles.hintContent}>
+                <Text style={styles.hintTitle}>So funktionieren Übergaben</Text>
+                <Text style={styles.hintText}>
+                  Erstelle vor jeder Übergabe eine Mitgabe-Liste mit allem, was das Kind mitnimmt – Kleidung, Medikamente, Schulranzen, Lieblingsteddy.{'\n\n'}
+                  Die Items werden automatisch aus der letzten Übergabe übernommen. Du kannst weitere hinzufügen oder entfernen.{'\n\n'}
+                  Der empfangende Elternteil bestätigt nach der Übergabe jedes Item einzeln – so geht nichts verloren und es gibt keine Diskussionen.
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -975,5 +991,29 @@ const styles = StyleSheet.create({
   loadingState: {
     paddingVertical: 60,
     alignItems: 'center',
+  },
+  hintBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFBEB',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 10,
+  },
+  hintContent: {
+    flex: 1,
+  },
+  hintTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#78350F',
+    lineHeight: 18,
   },
 });
